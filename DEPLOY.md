@@ -1,4 +1,6 @@
-# Going live on forefirst.makjal.com — step by step
+# Going live on momopasal.in — step by step
+
+(Moving to lali-guras.in later? See Part 9 — no code change needed.)
 
 Time needed: about 45 minutes. You need: your Hostinger login, a GitHub account, and your phone (for Google Authenticator).
 
@@ -8,7 +10,7 @@ How it fits together:
 You (or Claude) change code ──push──▶ GitHub "main"
                                         │  (automatic: a numbered version is tagged)
                                         ▼
-                                  GitHub "live" branch ──auto-deploy──▶ Hostinger ──▶ forefirst.makjal.com
+                                  GitHub "live" branch ──auto-deploy──▶ Hostinger ──▶ momopasal.in  (later lali-guras.in)
                                         ▲
                      "Roll back live site" button puts any old version back here
 ```
@@ -28,9 +30,10 @@ You (or Claude) change code ──push──▶ GitHub "main"
 ## Part 2 — Create the subdomain and the app on Hostinger
 
 1. hPanel → **Websites** → **Add website** → **Node.js web app** → **Import Git repository** → **Connect with GitHub** and allow access to `kainlee-invitations`.
-2. When asked for the domain, choose your existing domain and enter **forefirst.makjal.com**.
-   - If makjal.com is managed in this Hostinger account, the subdomain is set up for you.
-   - If makjal.com’s DNS is with another provider, Hostinger shows the record to add there (usually an **A** record, name `forefirst`, pointing to your Hostinger server IP). Add it, then wait 15–60 minutes.
+2. When asked for the domain, choose your existing domain **momopasal.in**.
+   - If momopasal.in is registered or managed in this Hostinger account, it is connected for you.
+   - If it is registered elsewhere, either point its nameservers to Hostinger’s (hPanel shows them) or add the **A** record Hostinger shows (name `@`, and `www`, pointing to your Hostinger server IP) at your registrar. Wait 15–60 minutes.
+   - If momopasal.in already has a website on this plan, Hostinger asks you to remove that website first (the Node.js deploy needs a fresh slot for the domain).
 3. Settings:
    - **Branch:** `live`
    - **Framework:** Next.js (auto-detected) · **Node.js version:** 22
@@ -40,7 +43,7 @@ You (or Claude) change code ──push──▶ GitHub "main"
 
 ## Part 3 — Create the database
 
-1. hPanel → **Websites** → forefirst.makjal.com → **Databases** → **Management**.
+1. hPanel → **Websites** → momopasal.in → **Databases** → **Management**.
 2. Database name `kainlee`, user `kainlee`, a strong password → **Create**. Hostinger adds a prefix, e.g. `u123456789_kainlee`. Write down the full names and the password.
 
 ## Part 4 — Environment variables (the app’s settings)
@@ -56,11 +59,11 @@ hPanel → your Node.js app → **Settings / Deployments** → **Environment var
 | `DB_PASSWORD` | your database password |
 | `SESSION_SECRET` | a random 40+ character string (e.g. from a password generator). Keep it secret. |
 
-Then **Redeploy**. When it shows success, open **https://forefirst.makjal.com** — you should see the crest and the marching squad. Make sure the address has the padlock (SSL). If not, hPanel → **Security → SSL** → install the free certificate for the subdomain.
+Then **Redeploy**. When it shows success, open **https://momopasal.in** — you should see the crest and the marching squad. Make sure the address has the padlock (SSL). If not, hPanel → **Security → SSL** → install the free certificate for the subdomain.
 
 ## Part 5 — First login (creates you as Super Admin)
 
-1. Open **https://forefirst.makjal.com/login**. The first visit shows **First-time setup**.
+1. Open **https://momopasal.in/login**. The first visit shows **First-time setup**.
 2. Enter your name with rank, a username and a password (8+ characters).
 3. Install **Google Authenticator** on your phone, scan the QR code shown, type the 6-digit code. Done — you are the Super Admin.
 4. **Settings & activity**: check the crest, regiment name, and the credit line *“Crafted with pride by Mak · makjal.com”* (shown on every page and to every guest). Download a backup here any time.
@@ -95,7 +98,7 @@ Gate tablets: log in as a Check-in Volunteer → **Check-in** → **Scan entry Q
 
 1. When the transfer finishes, in hPanel connect **lali-guras.in** to this same Node.js website (change the website’s domain or add it as an additional/alias domain), and install SSL for it.
 2. Add the environment variable `SITE_URL=https://lali-guras.in` and **Redeploy**. New WhatsApp messages will use the new address.
-3. **Keep forefirst.makjal.com working** (as an alias or a redirect to lali-guras.in) so links already sent to guests still open. Guests’ links and PINs do not change.
+3. **Keep momopasal.in working** (as an alias or a redirect to lali-guras.in) so links already sent to guests still open. Guests’ links and PINs do not change.
 
 ## If something goes wrong
 
