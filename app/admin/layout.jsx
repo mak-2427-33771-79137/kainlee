@@ -11,7 +11,7 @@ export const metadata = { manifest: '/admin-manifest.webmanifest' };
 
 export default async function AdminLayout({ children }) {
   const user = await pageUser();
-  const events = (await listEvents()).map((e) => ({ id: e.id, name: e.name, status: e.status }));
+  const events = (await listEvents()).map((e) => ({ id: e.id, name: e.name, status: e.status, guestroom: !!e.guestroom_enabled }));
   return (
     <Frame>
       <Shell

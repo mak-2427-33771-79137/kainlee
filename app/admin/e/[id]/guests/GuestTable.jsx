@@ -4,10 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import Icon from '@/components/Icon';
 import Modal from '@/components/Modal';
+import Portal from '@/components/Portal';
 import ExportMenu from '@/components/ExportMenu';
 import useMedia from '@/components/useMedia';
 import { admin, toast } from '@/components/client';
-import { sendWhatsApp, sharePdf } from '@/components/sendInvite';
+import { sendWhatsApp, shareCard, prepareCard, forgetCard } from '@/components/sendInvite';
 import { CATEGORIES } from '@/lib/consts';
 
 const RSVP = { attending: ['att', 'Attending'], declined: ['dec', 'Regret'], pending: ['pen', 'Pending'] };
@@ -22,7 +23,10 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
   const [pinFor, setPinFor] = useState(null);
   const [assignTo, setAssignTo] = useState('');
   const [moreF, setMoreF] = useState(false);
-  const showRooms = filters.offrs === '1' || !!filters.guestroom;
+  const [selMode, setSelMode] = useState(false);
+  const gr = event.guestroom;
+  const showRooms = gr && (filters.offrs === '1' || !!filters.guestroom);
+  const picking = !phone || selMode || sel.size > 0;
 
   const setF = (patch) => {
     const next = { ...filters, ...patch };
@@ -46,7 +50,7 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
     try {
       const r = await admin('inv.assign', { ids: [...sel], to: assignTo === 'none' ? null : assignTo });
       toast(`${r.count} guest(s) ${assignTo === 'none' ? 'unassigned' : 'assigned'}`);
-      setSel(new Set()); router.refresh();
+      setSel(new Set()); setSelMode(false); setAssignTo(''); router.refresh();
     } catch (e) { toast(e.message, true); }
   }
 
@@ -94,24 +98,19 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
         </div>
         <div className="row" style={{ gap: 8 }}>
           {chip(`All ${counts.all}`, noF, !Object.keys(filters).some((k) => k !== 'q'))}
-          {chip(`Offrs ${counts.offrs}`, { offrs: filters.offrs === '1' ? '' : '1', category: '' }, filters.offrs === '1')}
-          {chip(`Guest room ${counts.gr}`, { guestroom: filters.guestroom === 'required' ? '' : 'required' }, filters.guestroom === 'required')}
-          {chip(`Allotment pending ${counts.grPending}`, { guestroom: filters.guestroom === 'pending' ? '' : 'pending' }, filters.guestroom === 'pending', true)}
-          {chip(`Not sent ${counts.unsent}`, { status: filters.status === 'unsent' ? '' : 'unsent' }, filters.status === 'unsent')}
+          {chip(`✓ Attending ${counts.attending}`, { status: filters.status === 'attending' ? '' : 'attending' }, filters.status === 'attending')}
+          {chip(`✕ Regret ${counts.declined}`, { status: filters.status === 'declined' ? '' : 'declined' }, filters.status === 'declined', true)}
           {chip(`No reply ${counts.pending}`, { status: filters.status === 'pending' ? '' : 'pending' }, filters.status === 'pending')}
-          {chip('Attending', { status: filters.status === 'attending' ? '' : 'attending' }, filters.status === 'attending')}
-          {chip('Regret', { status: filters.status === 'declined' ? '' : 'declined' }, filters.status === 'declined')}
+          {chip(`Not sent ${counts.unsent}`, { status: filters.status === 'unsent' ? '' : 'unsent' }, filters.status === 'unsent')}
+          {chip(`Offrs ${counts.offrs}`, { offrs: filters.offrs === '1' ? '' : '1', category: '' }, filters.offrs === '1')}
+          {gr && chip(`Guest room ${counts.gr}`, { guestroom: filters.guestroom === 'required' ? '' : 'required' }, filters.guestroom === 'required')}
+          {gr && chip(`Allotment pending ${counts.grPending}`, { guestroom: filters.guestroom === 'pending' ? '' : 'pending' }, filters.guestroom === 'pending', true)}
         </div>
-        {sel.size > 0 && (
-          <div className="row" style={{ background: 'var(--green-soft)', borderRadius: 10, padding: '8px 10px' }}>
-            <b>{sel.size} selected</b>
-            <select className="inp" id="g-assign" value={assignTo} onChange={(e) => setAssignTo(e.target.value)} style={{ width: 'auto', flex: '1 1 200px' }}>
-              <option value="">{perms.assign ? 'Assign to…' : 'Transfer to…'}</option>
-              {perms.assign && <option value="none">Unassigned</option>}
-              {handlers.filter((h) => perms.assign || h.id !== me.id).map((h) => <option key={h.id} value={h.id}>{h.name} · {h.role}</option>)}
-            </select>
-            <button type="button" className="btn grn" disabled={!assignTo} onClick={assign}><Icon n="swap" />{perms.assign ? 'Assign' : 'Transfer'}</button>
-            <button type="button" className="btn ghost" onClick={() => setSel(new Set())}>Clear</button>
+        {selectable.length > 0 && (
+          <div className="row" style={{ gap: 8 }}>
+            {phone && !selMode && sel.size === 0 && <button type="button" className="btn sm" id="g-selmode" onClick={() => setSelMode(true)}><Icon n="swap" size={15} />Select guests to assign</button>}
+            {picking && <button type="button" className="btn sm" id="g-selall" onClick={() => setSel(allSel ? new Set() : new Set(selectable.map((r) => r.id)))}>{allSel ? 'Unselect all' : `Select all ${selectable.length} shown`}</button>}
+            {picking && phone && <span className="mu" style={{ fontSize: 13 }}>Tick guests, then pick who looks after them.</span>}
           </div>
         )}
       </div>
@@ -125,7 +124,7 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
               <thead><tr>
                 <th style={{ width: 34 }}>{selectable.length > 0 && <input type="checkbox" aria-label="Select all" checked={allSel} onChange={() => setSel(allSel ? new Set() : new Set(selectable.map((r) => r.id)))} />}</th>
                 <th style={{ minWidth: 190 }}>Invitee</th><th>Contact</th><th>Looked after by</th><th>RSVP</th><th>Heads</th>
-                <th>Guest room</th>{showRooms && <><th>ETA</th><th>ETD</th><th style={{ minWidth: 260 }}>Allotment / comment</th></>}
+                {gr && <th>Guest room</th>}{showRooms && <><th>ETA</th><th>ETD</th><th style={{ minWidth: 260 }}>Allotment / comment</th></>}
                 <th>Invite</th>
               </tr></thead>
               <tbody>
@@ -138,7 +137,7 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
                     <td>{r.handler || <span className="chip pen">Unassigned</span>}</td>
                     <td><span className={`chip ${RSVP[r.rsvp][0]}`}>{RSVP[r.rsvp][1]}</span></td>
                     <td className="num"><b>{r.rsvp === 'pending' ? '—' : r.heads}</b></td>
-                    <td>{r.need ? <span className="chip gr">{r.need > 1 ? `${r.need} rooms` : 'Required'}</span> : r.eligible ? <span className="chip gray">Not required</span> : <span className="mu">—</span>}</td>
+                    {gr && <td>{r.need ? <span className="chip gr">{r.need > 1 ? `${r.need} rooms` : 'Required'}</span> : r.eligible ? <span className="chip gray">Not required</span> : <span className="mu">—</span>}</td>}
                     {showRooms && <>
                       <td className="num" style={{ whiteSpace: 'nowrap' }}>{r.need && r.eta ? <><b>{r.eta[0]}</b><br />{r.eta[1]}</> : '—'}</td>
                       <td className="num" style={{ whiteSpace: 'nowrap' }}>{r.need && r.etd ? <><b>{r.etd[0]}</b><br />{r.etd[1]}</> : '—'}</td>
@@ -158,14 +157,14 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
           {visible.map((r) => (
             <div key={r.id} className="card3" style={{ padding: '12px 12px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-                {r.canTransfer && <input type="checkbox" aria-label={`Select ${r.name}`} checked={sel.has(r.id)} onChange={() => toggle(r.id)} style={{ marginTop: 5, width: 20, height: 20 }} />}
+                {r.canTransfer && picking && <input type="checkbox" aria-label={`Select ${r.name}`} checked={sel.has(r.id)} onChange={() => toggle(r.id)} style={{ marginTop: 3, width: 24, height: 24, flex: 'none', accentColor: 'var(--green)' }} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Link href={`/admin/e/${event.id}/guests/${r.id}`} style={{ color: 'inherit', fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>{r.name}</Link>
                   <div className="sub mu" style={{ fontSize: 13 }}>{r.cat}{r.family ? ` · ${r.family}` : ''} · {r.handler || 'Unassigned'}</div>
                 </div>
                 <span className={`chip ${RSVP[r.rsvp][0]}`}>{RSVP[r.rsvp][1]}{r.rsvp === 'attending' ? ` · ${r.heads}` : ''}</span>
               </div>
-              {r.need > 0 && (
+              {gr && r.need > 0 && (
                 <div style={{ background: '#fff7f7', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div className="row" style={{ gap: 6 }}><span className="chip gr">{r.need} room{r.need > 1 ? 's' : ''}</span>
                     <span className="num" style={{ fontSize: 13 }}>ETA {r.eta?.join(' ')} → ETD {r.etd?.join(' ')}</span></div>
@@ -180,6 +179,25 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
       {rows.length > limit && <button type="button" className="btn" onClick={() => setLimit(limit + 200)}>Show more ({rows.length - limit} more)</button>}
 
       {pinFor && <PinReset r={pinFor} onClose={() => setPinFor(null)} />}
+
+      {(sel.size > 0 || selMode) && (
+        <Portal>
+          <div className="actbar card3 band" role="region" aria-label="Assign selected guests">
+            <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
+              <b>{sel.size} guest{sel.size === 1 ? '' : 's'} selected</b>
+              <button type="button" className="btn sm ghost" onClick={() => { setSel(new Set()); setSelMode(false); }}>Cancel</button>
+            </div>
+            <div className="row" style={{ flexWrap: 'nowrap', gap: 8 }}>
+              <select className="inp" id="g-assign" value={assignTo} onChange={(e) => setAssignTo(e.target.value)} style={{ flex: 1, minWidth: 0 }} aria-label="Looked after by">
+                <option value="">{perms.assign ? 'Looked after by…' : 'Transfer to…'}</option>
+                {perms.assign && <option value="none">Nobody (unassign)</option>}
+                {handlers.filter((h) => perms.assign || h.id !== me.id).map((h) => <option key={h.id} value={h.id}>{h.name} · {h.role}</option>)}
+              </select>
+              <button type="button" className="btn grn" id="g-assign-go" disabled={!assignTo || !sel.size} onClick={assign}><Icon n="swap" />{perms.assign ? 'Assign' : 'Transfer'}</button>
+            </div>
+          </div>
+        </Portal>
+      )}
     </>
   );
 }
@@ -200,13 +218,14 @@ function Actions({ r, onPin }) {
   const router = useRouter();
   return (
     <span className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
-      {r.canSend && r.mobile && (
-        <button type="button" className="btn sm pri" disabled={busy} title={r.sent ? `Last sent ${r.sent}` : 'Not sent yet'}
-          onClick={async () => { setBusy(true); if (await sendWhatsApp(r.id)) router.refresh(); setBusy(false); }}>
+      {r.canSend && (
+        <button type="button" className="btn sm pri" disabled={busy} title={`Send card image + message${r.sent ? ` · last sent ${r.sent}` : ''}`}
+          onPointerDown={() => prepareCard(r.id)}
+          onClick={async () => { setBusy(true); if (await shareCard(r.id)) router.refresh(); setBusy(false); }}>
           <Icon n="wa" size={15} />{r.sent ? 'Resend' : 'Send'}
         </button>
       )}
-      {r.canSend && <button type="button" className="btn sm" title="Share PDF (phone)" aria-label="Share PDF" onClick={() => sharePdf(r.id).then(() => router.refresh())}><Icon n="share" size={15} /></button>}
+      {r.canSend && r.mobile && <button type="button" className="btn sm" title="Message only, straight to their number" aria-label="Message only to their number" onClick={async () => { setBusy(true); if (await sendWhatsApp(r.id, 'invite', { withImage: false })) router.refresh(); setBusy(false); }}><Icon n="send" size={15} /></button>}
       {r.canPin && <button type="button" className="btn sm" title="Reset PIN" aria-label="Reset PIN" onClick={onPin}><Icon n="key" size={15} /></button>}
     </span>
   );
@@ -261,7 +280,7 @@ export function PinReset({ r, onClose }) {
   const [busy, setBusy] = useState(false);
   const go = async (newLink) => {
     setBusy(true);
-    try { setRes(await admin('inv.resetPin', { id: r.id, newLink })); } catch (e) { toast(e.message, true); } finally { setBusy(false); }
+    try { setRes(await admin('inv.resetPin', { id: r.id, newLink })); forgetCard(r.id); } catch (e) { toast(e.message, true); } finally { setBusy(false); }
   };
   return (
     <Modal title={`Reset PIN · ${r.name}`} onClose={onClose}>

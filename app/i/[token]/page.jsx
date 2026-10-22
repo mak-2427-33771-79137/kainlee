@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { guestAuthed, guestView } from '@/lib/guest';
 import { displayName } from '@/lib/data';
 import { regimentName, getSetting } from '@/lib/settings';
+import { requestBase, cardPreviewMeta } from '@/lib/page';
 
 export const dynamic = 'force-dynamic';
 
@@ -19,12 +20,12 @@ export async function generateMetadata({ params }) {
   const { token } = await params;
   const r = await find(token);
   if (!r) return { title: 'Invitation' };
-  const reg = await regimentName();
+  const [reg, base] = await Promise.all([regimentName(), requestBase()]);
   return {
     title: `Invitation · ${displayName(r)}`,
     description: `${reg} cordially invites you to ${r.event}`,
     manifest: `/i/${token}/manifest.webmanifest`,
-    openGraph: { title: `${reg} · Invitation for ${displayName(r)}`, description: r.event, images: [{ url: '/api/logo/512', width: 512, height: 512 }] },
+    ...cardPreviewMeta(base, token, `${reg} · Invitation for ${displayName(r)}`, `${r.event} · Tap to RSVP`),
   };
 }
 
@@ -33,12 +34,13 @@ export default async function GuestPage({ params }) {
   const r = await find(token);
   if (!r) notFound();
   const authed = (await guestAuthed(token)) === r.id;
+  const [initial, regiment, credit] = await Promise.all([authed ? guestView(token) : null, regimentName(), getSetting('credit_text')]);
   return (
     <Frame>
       <GuestApp
         token={token}
-        initial={authed ? await guestView(token) : null}
-        preview={{ name: displayName(r), lang: r.lang, regiment: await regimentName(), event: r.event, credit: (await getSetting('credit_text')) ?? 'Crafted with pride by Mak · makjal.com' }}
+        initial={initial}
+        preview={{ name: displayName(r), lang: r.lang, regiment, event: r.event, credit: credit ?? 'Crafted with pride by Mak · makjal.com' }}
       />
     </Frame>
   );

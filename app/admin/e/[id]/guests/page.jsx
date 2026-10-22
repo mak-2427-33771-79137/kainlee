@@ -34,6 +34,8 @@ export default async function Guests({ params, searchParams }) {
     grPending: all.filter((i) => roomsNeeded(i) > i.rooms.length).length,
     unsent: all.filter((i) => !i.invite_sent_at).length,
     pending: all.filter((i) => i.rsvp_status === 'pending').length,
+    attending: all.filter((i) => i.rsvp_status === 'attending').length,
+    declined: all.filter((i) => i.rsvp_status === 'declined').length,
     unassigned: all.filter((i) => !i.handler_id).length,
     mine: all.filter((i) => i.handler_id === user.id).length,
   };
@@ -72,7 +74,7 @@ export default async function Guests({ params, searchParams }) {
     <>
       <AutoRefresh every={45} />
       <GuestTable
-        event={{ id: ev.id, name: ev.name }}
+        event={{ id: ev.id, name: ev.name, guestroom: !!ev.guestroom_enabled }}
         rows={rows}
         filters={f}
         counts={counts}

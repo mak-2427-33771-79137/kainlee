@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/Icon';
 import CardView from '@/components/CardView';
+import DateTimeField from '@/components/DateTimeField';
 import { admin, toast } from '@/components/client';
 
 const TPL_KEYS = [['invite_en', 'Invite · English'], ['invite_hi', 'Invite · Hindi'], ['invite_ne', 'Invite · Nepali'], ['reminder_en', 'Reminder · English'], ['reminder_hi', 'Reminder · Hindi'], ['reminder_ne', 'Reminder · Nepali']];
@@ -42,8 +43,12 @@ export default function EventSetup({ ev, functions, series, templates, placehold
             <label className="field"><span>Status</span><select className="inp" id="e-status" value={f.status} onChange={set('status')}><option value="active">Active</option><option value="draft">Draft</option><option value="closed">Closed (RSVP locked)</option></select></label>
             <label className="field"><span>Main venue</span><input className="inp" id="e-venue" value={f.venue} onChange={set('venue')} /></label>
             <label className="field"><span>Google Maps link</span><input className="inp" id="e-map" value={f.map_url} onChange={set('map_url')} placeholder="https://…" /></label>
-            <label className="field"><span>RSVP closes (IST)</span><input className="inp" id="e-deadline" type="datetime-local" value={f.rsvp_deadline} onChange={set('rsvp_deadline')} /></label>
+            <DateTimeField id="e-deadline" label="RSVP closes (IST)" value={f.rsvp_deadline} onChange={(v) => setF({ ...f, rsvp_deadline: v })} />
             <label className="field"><span>Extra guests allowed</span><input className="inp" id="e-cap" type="number" min="0" max="10" value={f.default_extra_cap} onChange={set('default_extra_cap')} /></label>
+          </div>
+          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: '#faf6ec', borderRadius: 10, padding: '10px 12px' }}>
+            <div><b>Guest rooms</b><div className="mu" style={{ fontSize: 13 }}>{f.guestroom_enabled ? 'On: officers can request guest rooms with ETA / ETD.' : 'Off: guests are not asked about guest rooms.'}</div></div>
+            <button type="button" className="tog" id="e-gr" aria-pressed={!!f.guestroom_enabled} aria-label="Guest rooms for this event" onClick={() => setF({ ...f, guestroom_enabled: !f.guestroom_enabled })}><i /></button>
           </div>
           <div className="lbl">Invitation card wording</div>
           <label className="field"><span>Host line</span><input className="inp" id="e-host" value={f.card_host} onChange={set('card_host')} placeholder="The Commanding Officer and all Officers" /></label>
@@ -68,7 +73,7 @@ export default function EventSetup({ ev, functions, series, templates, placehold
             <form className="stack" style={{ background: '#faf6ec', borderRadius: 10, padding: 12 }} onSubmit={(e) => { e.preventDefault(); run(async () => { await admin('function.save', { event_id: ev.id, ...fn }); setFn(null); }, 'Function saved'); }}>
               <div className="grid2">
                 <label className="field"><span>Name</span><input className="inp" id="f-name" value={fn.name} onChange={(e) => setFn({ ...fn, name: e.target.value })} required placeholder="Barakhana" /></label>
-                <label className="field"><span>Date &amp; time (IST)</span><input className="inp" id="f-at" type="datetime-local" value={fn.starts_at} onChange={(e) => setFn({ ...fn, starts_at: e.target.value })} required /></label>
+                <DateTimeField id="f-at" label="Date & time (IST)" value={fn.starts_at} onChange={(v) => setFn({ ...fn, starts_at: v })} />
                 <label className="field"><span>Venue (if different)</span><input className="inp" id="f-venue" value={fn.venue} onChange={(e) => setFn({ ...fn, venue: e.target.value })} /></label>
                 <label className="field"><span>Dress</span><input className="inp" id="f-dress" value={fn.dress} onChange={(e) => setFn({ ...fn, dress: e.target.value })} placeholder="Open Collar" /></label>
                 <label className="field" style={{ gridColumn: '1/-1' }}><span>Maps link (if different)</span><input className="inp" id="f-map" value={fn.map_url} onChange={(e) => setFn({ ...fn, map_url: e.target.value })} /></label>

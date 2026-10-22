@@ -1,5 +1,5 @@
 /* Kainlee service worker: fast repeat visits, offline entry pass, push notifications. */
-const VERSION = 'kl-v1';
+const VERSION = 'kl-v2';
 const STATIC = `${VERSION}-static`;
 const PAGES = `${VERSION}-pages`;
 

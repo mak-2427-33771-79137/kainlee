@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Icon from '@/components/Icon';
 import March from '@/components/March';
 import CardView from '@/components/CardView';
+import DateTimeField from '@/components/DateTimeField';
 import { api, toast, confetti } from '@/components/client';
 import { dict, LANGS } from '@/lib/i18n';
 import { RELATIONS, AGE_GROUPS, FAMILY_RELATIONS } from '@/lib/consts';
@@ -71,14 +72,16 @@ function Invitation({ token, data, setData, t, lang, setLang }) {
   const fnIds = fns.map((f) => f.id);
   const closed = event.closed;
   const [flip, setFlip] = useState(false);
-  const [members, setMembers] = useState(data.members);
+  // Not replied yet: everything is pre-ticked, so "Save" means attending
+  const withDefaults = (d) => (d.invitation.rsvp_status === 'pending' ? d.members.map((m) => (m.attending.length ? m : { ...m, attending: [...fnIds] })) : d.members);
+  const [members, setMembers] = useState(() => withDefaults(data));
   const [reply, setReply] = useState(inv.rsvp_status);
   const [gr, setGr] = useState({ required: inv.guestroom_required, rooms: inv.rooms_required || 1, eta: inv.eta, etd: inv.etd });
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [installEvt, setInstallEvt] = useState(null);
 
-  useEffect(() => { setMembers(data.members); setReply(data.invitation.rsvp_status); }, [data]);
+  useEffect(() => { setMembers(withDefaults(data)); setReply(data.invitation.rsvp_status); }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     const h = (e) => { e.preventDefault(); setInstallEvt(e); };
     window.addEventListener('beforeinstallprompt', h);
@@ -104,7 +107,7 @@ function Invitation({ token, data, setData, t, lang, setLang }) {
       const next = await api(`/api/g/${token}`, {
         action: 'save', decline,
         members: members.map(({ id, name, relation, age_group, meal, meal_note, attending }) => ({ id, name, relation, age_group, meal, meal_note, attending: decline ? [] : attending })),
-        guestroom: inv.guestroom_eligible ? gr : undefined,
+        guestroom: inv.guestroom_eligible && event.guestroom ? gr : undefined,
       });
       setData(next); setDirty(false);
       if (!decline) { confetti(); toast(`${t.saved} ${data.warCry || ''}`); } else toast(t.saved);
@@ -189,26 +192,24 @@ function Invitation({ token, data, setData, t, lang, setLang }) {
         </section>
       )}
 
-      {inv.guestroom_eligible && reply !== 'declined' && (
+      {inv.guestroom_eligible && event.guestroom && reply !== 'declined' && (
         <section className="card3 band stack" style={{ padding: '20px 14px 14px' }}>
           <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap' }}>
             <div><h2 className="go" style={{ fontSize: 24 }}>{t.gr}</h2><div className="mu" style={{ fontSize: 13.5 }}>{t.grAsk}</div></div>
-            <button type="button" className="tog" aria-pressed={!!gr.required} aria-label={t.grAsk} disabled={closed} onClick={() => { setGr({ ...gr, required: !gr.required }); setDirty(true); }}><i /></button>
+            <button type="button" className="tog" aria-pressed={!!gr.required} aria-label={t.grAsk} disabled={closed} onClick={() => { setGr({ ...gr, required: !gr.required }); setDirty(true); if (!gr.required && reply !== 'attending') { setReply('attending'); if (members.every((m) => !m.attending.length)) setMembers(members.map((m) => ({ ...m, attending: [...fnIds] }))); } }}><i /></button>
           </div>
           {gr.required && (
             <div className="stack" style={{ gap: 10, animation: 'toast .35s ease both' }}>
-              <div className="grid2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,150px),1fr))' }}>
-                <label className="field"><span>{t.rooms}</span>
-                  <div className="row" style={{ flexWrap: 'nowrap', gap: 8 }}>
-                    <button type="button" className="btn sm" disabled={closed || gr.rooms <= 1} onClick={() => { setGr({ ...gr, rooms: gr.rooms - 1 }); setDirty(true); }} aria-label="−">−</button>
-                    <b className="num" style={{ fontSize: 22, minWidth: 24, textAlign: 'center' }}>{gr.rooms}</b>
-                    <button type="button" className="btn sm" disabled={closed || gr.rooms >= 4} onClick={() => { setGr({ ...gr, rooms: gr.rooms + 1 }); setDirty(true); }} aria-label="+">+</button>
-                  </div>
-                </label>
-                <label className="field"><span>{t.eta}</span><input className="inp" id="g-eta" type="datetime-local" value={gr.eta} disabled={closed} onChange={(e) => { setGr({ ...gr, eta: e.target.value }); setDirty(true); }} /></label>
-                <label className="field"><span>{t.etd}</span><input className="inp" id="g-etd" type="datetime-local" value={gr.etd} disabled={closed} onChange={(e) => { setGr({ ...gr, etd: e.target.value }); setDirty(true); }} /></label>
+              <div className="field"><span>{t.rooms}</span>
+                <div className="row" style={{ flexWrap: 'nowrap', gap: 8 }}>
+                  <button type="button" className="btn sm" disabled={closed || gr.rooms <= 1} onClick={() => { setGr({ ...gr, rooms: gr.rooms - 1 }); setDirty(true); }} aria-label="−">−</button>
+                  <b className="num" style={{ fontSize: 22, minWidth: 24, textAlign: 'center' }}>{gr.rooms}</b>
+                  <button type="button" className="btn sm" disabled={closed || gr.rooms >= 4} onClick={() => { setGr({ ...gr, rooms: gr.rooms + 1 }); setDirty(true); }} aria-label="+">+</button>
+                </div>
               </div>
-              {gr.eta && gr.etd && <div className="mu" style={{ fontSize: 13 }}>{nights ? `${nights} ${t.nights}` : t.grBad}</div>}
+              <DateTimeField id="g-eta" label={t.eta} value={gr.eta} disabled={closed} dateLabel={t.dateL} timeLabel={t.timeL} hint={t.tapChoose} onChange={(v) => { setGr({ ...gr, eta: v }); setDirty(true); }} />
+              <DateTimeField id="g-etd" label={t.etd} value={gr.etd} disabled={closed} dateLabel={t.dateL} timeLabel={t.timeL} hint={t.tapChoose} onChange={(v) => { setGr({ ...gr, etd: v }); setDirty(true); }} />
+              {gr.eta && gr.etd && <div className={nights ? 'okmsg' : 'err'} style={{ fontSize: 14 }}>{nights ? `${dt(gr.eta + ':00+05:30', lang)}, ${hrs(gr.eta + ':00+05:30')} → ${dt(gr.etd + ':00+05:30', lang)}, ${hrs(gr.etd + ':00+05:30')} · ${nights} ${t.nights}` : t.grBad}</div>}
               <div style={{ border: '2px dashed #d9a400', background: '#fff8e0', borderRadius: 8, padding: '9px 11px', fontSize: 14 }}>
                 <b>{t.allotH}</b><br />
                 {inv.rooms_allotted.length ? <>{t.allotted}: {inv.rooms_allotted.map((r) => `${r.name}${r.location ? `, ${r.location}` : ''}`).join(' · ')}</> : t.allotPending}

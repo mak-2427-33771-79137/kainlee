@@ -10,6 +10,7 @@ import {
 } from '@/lib/util';
 import { setSetting } from '@/lib/settings';
 import { buildMessage } from '@/lib/messages';
+import { cardHtmlFor } from '@/lib/guest';
 import { sanitizeCard } from '@/lib/cards';
 import { saveSubscription, vapidPublicKey, notifyUsers, notifyGuestChange } from '@/lib/notify';
 import { regimentName } from '@/lib/settings';
@@ -99,6 +100,7 @@ A['event.save'] = async (u, b, req) => {
     default_extra_cap: Math.max(0, Math.min(10, Number(b.default_extra_cap ?? 2) || 0)),
     card_host: str(b.card_host), card_unit: str(b.card_unit), card_note: str(b.card_note),
   };
+  if (b.guestroom_enabled != null) row.guestroom_enabled = !!b.guestroom_enabled;
   if (row.map_url && !/^https?:\/\//i.test(row.map_url)) bad('Directions link must start with https://');
   let id = int(b.id);
   if (id) await k('events').where({ id }).update(row);
@@ -282,7 +284,16 @@ A['inv.resetPin'] = async (u, b, req) => {
 A['inv.message'] = async (u, b, req) => {
   const inv = await needInv(u, b.id, 'invites.send');
   const kind = b.kind === 'reminder' ? 'reminder' : 'invite';
-  return buildMessage(req, inv.id, kind).then((m) => ({ text: m.text, wa: m.wa, mobile: m.mobile, pdfLink: m.pdfLink }));
+  const m = await buildMessage(req, inv.id, kind);
+  const out = { text: m.text, wa: m.wa, mobile: m.mobile, pdfLink: m.pdfLink, cardPng: m.cardPng, fileName: m.fileName, cardMode: m.cardMode, name: [m.inv.rank, m.inv.name].filter(Boolean).join(' ') };
+  // Custom HTML cards are turned into an image on the sender's device
+  if (b.withCard && m.cardMode !== 'builtin') {
+    const ev = await getEvent(inv.event_id);
+    const k = await db();
+    const invitee = await k('invitees').where({ id: inv.invitee_id }).first();
+    out.cardHtml = await cardHtmlFor(ev, invitee, inv.checkin_code);
+  }
+  return out;
 };
 
 A['inv.markSent'] = async (u, b, req) => {
@@ -317,7 +328,7 @@ A['queue.next'] = async (u, b, req) => {
   if (!next) return { done: true, remaining: 0 };
   await k('invitations').where({ id: next.id }).update({ claimed_by: u.id, claimed_at: new Date() });
   const m = await buildMessage(req, next.id, kind);
-  return { id: next.id, name: await invName(next.id), mobile: m.mobile, text: m.text, wa: m.wa, pdfLink: m.pdfLink, remaining };
+  return { id: next.id, name: await invName(next.id), mobile: m.mobile, text: m.text, wa: m.wa, pdfLink: m.pdfLink, cardPng: m.cardPng, remaining };
 };
 
 // ---------- handlers (who looks after whom) ----------

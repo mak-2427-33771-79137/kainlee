@@ -103,13 +103,15 @@ export default async function Dashboard({ params, searchParams }) {
           </Link>
         )}
 
-        <Link className="card3 band tilt3 kpi" href={`/admin/e/${ev.id}/rooms`} style={{ animationDelay: '.45s' }}>
-          <span className="lbl">Guest rooms</span>
-          <div className="row" style={{ alignItems: 'baseline', gap: 6 }}><span className="big"><Count to={G.rooms_needed} /></span><span className="mu">required</span></div>
-          <span>Allotted <b>{G.rooms_allotted}</b> · Vacant <b>{G.vacant}</b> of {G.total_rooms}</span>
-          <div className="bar"><i style={{ width: pct(G.rooms_allotted, G.rooms_needed || 1) }} /></div>
-          <span style={{ color: G.still_needed ? 'var(--red-text)' : 'var(--green)', fontWeight: 700 }}>{G.still_needed ? `${G.still_needed} more room(s) needed` : 'All requests allotted'}</span>
-        </Link>
+        {!!ev.guestroom_enabled && (
+          <Link className="card3 band tilt3 kpi" href={`/admin/e/${ev.id}/rooms`} style={{ animationDelay: '.45s' }}>
+            <span className="lbl">Guest rooms</span>
+            <div className="row" style={{ alignItems: 'baseline', gap: 6 }}><span className="big"><Count to={G.rooms_needed} /></span><span className="mu">required</span></div>
+            <span>Allotted <b>{G.rooms_allotted}</b> · Vacant <b>{G.vacant}</b> of {G.total_rooms}</span>
+            <div className="bar"><i style={{ width: pct(G.rooms_allotted, G.rooms_needed || 1) }} /></div>
+            <span style={{ color: G.still_needed ? 'var(--red-text)' : 'var(--green)', fontWeight: 700 }}>{G.still_needed ? `${G.still_needed} more room(s) needed` : 'All requests allotted'}</span>
+          </Link>
+        )}
 
         <div className="card3 band tilt3 kpi" style={{ animationDelay: '.55s' }}>
           <span className="lbl">Who looks after whom</span>

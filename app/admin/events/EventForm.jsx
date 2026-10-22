@@ -2,10 +2,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { admin, toast } from '@/components/client';
+import DateTimeField from '@/components/DateTimeField';
 
 export default function EventForm({ series }) {
   const router = useRouter();
-  const [f, setF] = useState({ name: '', series_id: '', venue: '', map_url: '', rsvp_deadline: '', default_extra_cap: 2, card_host: 'The Commanding Officer and all Officers', card_unit: '', card_note: 'Ladies & Children are cordially invited' });
+  const [f, setF] = useState({ name: '', series_id: '', venue: '', map_url: '', rsvp_deadline: '', default_extra_cap: 2, card_host: 'The Commanding Officer and all Officers', card_unit: '', card_note: 'Ladies & Children are cordially invited', guestroom_enabled: true });
   const [sname, setSname] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -34,8 +35,12 @@ export default function EventForm({ series }) {
         <div className="grid2">
           <label className="field"><span>Main venue</span><input className="inp" id="ev-venue" value={f.venue} onChange={set('venue')} placeholder="Officers' Mess" /></label>
           <label className="field"><span>Google Maps link</span><input className="inp" id="ev-map" value={f.map_url} onChange={set('map_url')} placeholder="https://maps.app.goo.gl/…" /></label>
-          <label className="field"><span>RSVP closes (IST)</span><input className="inp" id="ev-deadline" type="datetime-local" value={f.rsvp_deadline} onChange={set('rsvp_deadline')} /></label>
+          <DateTimeField id="ev-deadline" label="RSVP closes (IST)" value={f.rsvp_deadline} onChange={(v) => setF({ ...f, rsvp_deadline: v })} />
           <label className="field"><span>Extra guests allowed (default)</span><input className="inp" id="ev-cap" type="number" min="0" max="10" value={f.default_extra_cap} onChange={set('default_extra_cap')} /></label>
+        </div>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: '#faf6ec', borderRadius: 10, padding: '10px 12px' }}>
+          <div><b>Guest rooms</b><div className="mu" style={{ fontSize: 13 }}>{f.guestroom_enabled ? 'On: officers can request guest rooms with ETA / ETD.' : 'Off: guests are not asked about guest rooms.'}</div></div>
+          <button type="button" className="tog" id="ev-gr" aria-pressed={!!f.guestroom_enabled} aria-label="Guest rooms for this event" onClick={() => setF({ ...f, guestroom_enabled: !f.guestroom_enabled })}><i /></button>
         </div>
         <button className="btn pri" disabled={busy}>Create event</button>
       </form>

@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/Icon';
+import DateTimeField from '@/components/DateTimeField';
 import { admin, toast } from '@/components/client';
-import { sendWhatsApp, sharePdf } from '@/components/sendInvite';
+import { sendWhatsApp, shareCard, prepareCard } from '@/components/sendInvite';
 import { Contact, Allot, PinReset } from '../GuestTable';
 import { RELATION_LABEL, AGE_LABEL, RELATIONS, AGE_GROUPS } from '@/lib/consts';
 
@@ -41,9 +42,9 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
           <Contact r={r} />
           {r.canSend && (
             <div className="row">
-              <button type="button" className="btn pri" disabled={busy} onClick={() => sendWhatsApp(r.id).then((ok) => ok && router.refresh())}><Icon n="wa" />{r.sent ? 'Resend invite' : 'Send invite'}</button>
-              <button type="button" className="btn" onClick={() => sendWhatsApp(r.id, 'reminder').then((ok) => ok && router.refresh())}><Icon n="bell" />Send reminder</button>
-              <button type="button" className="btn" onClick={() => sharePdf(r.id).then(() => router.refresh())}><Icon n="share" />Share PDF</button>
+              <button type="button" className="btn pri" disabled={busy} onPointerDown={() => prepareCard(r.id)} onClick={() => shareCard(r.id).then((ok) => ok && router.refresh())}><Icon n="wa" />{r.sent ? 'Resend card + message' : 'Send card + message'}</button>
+              {r.mobile && <button type="button" className="btn" onClick={() => sendWhatsApp(r.id, 'invite', { withImage: false }).then((ok) => ok && router.refresh())}><Icon n="send" />Message only</button>}
+              <button type="button" className="btn" onClick={() => sendWhatsApp(r.id, 'reminder', { withImage: false }).then((ok) => ok && router.refresh())}><Icon n="bell" />Send reminder</button>
             </div>
           )}
           {r.pin && (
@@ -73,6 +74,7 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
           </div>
         </section>
 
+        {event.guestroom && (<>
         <section className="card3 band stack" style={{ padding: '20px 16px 16px' }}>
           <h2 className="go" style={{ fontSize: 24 }}>Guest room</h2>
           {r.canEdit && (
@@ -88,13 +90,14 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
           {gr.required && (
             <div className="grid2">
               <label className="field"><span>Rooms</span><input className="inp" id="gr-rooms" type="number" min="1" max="10" value={gr.rooms} disabled={!r.canEdit} onChange={(e) => setGr({ ...gr, rooms: e.target.value })} /></label>
-              <label className="field"><span>ETA</span><input className="inp" id="gr-eta" type="datetime-local" value={gr.eta} disabled={!r.canEdit} onChange={(e) => setGr({ ...gr, eta: e.target.value })} /></label>
-              <label className="field"><span>ETD</span><input className="inp" id="gr-etd" type="datetime-local" value={gr.etd} disabled={!r.canEdit} onChange={(e) => setGr({ ...gr, etd: e.target.value })} /></label>
+              <DateTimeField id="gr-eta" label="Arrival (ETA)" value={gr.eta} disabled={!r.canEdit} onChange={(v) => setGr({ ...gr, eta: v })} />
+              <DateTimeField id="gr-etd" label="Departure (ETD)" value={gr.etd} disabled={!r.canEdit} onChange={(v) => setGr({ ...gr, etd: v })} />
             </div>
           )}
           {r.canEdit && <button type="button" className="btn grn" disabled={busy} onClick={() => run(() => admin('inv.guestroom', { id: r.id, ...gr }), 'Guest room saved')}>Save guest room</button>}
           {(r.need > 0 || r.rooms.length > 0) && <Allot r={r} vacant={vacant} canAllot={canAllot} onDone={() => router.refresh()} />}
         </section>
+        </>)}
       </div>
 
       <div className="stack">

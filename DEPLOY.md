@@ -111,3 +111,12 @@ Gate tablets: log in as a Check-in Volunteer → **Check-in** → **Scan entry Q
 | Camera does not open at the gate | The site must be on `https://`; allow camera for the site in the browser settings. |
 | No phone notifications on iPhone | Open the app from the Home Screen icon (not Safari), then **My account → Turn on notifications**. |
 | A guest is locked out | Guests’ page → key icon → **New PIN** (or **New PIN + new link** if the link leaked) → send on WhatsApp. |
+
+## Keep the site fast (stop it "sleeping")
+
+Hostinger can pause a Node.js app that nobody has visited for a while; the next visitor then waits
+several seconds while it starts again. A cron job that visits the site every 5 minutes keeps it awake:
+
+1. hPanel → **Advanced → Cron Jobs** → **Custom**.
+2. Command: `curl -s https://momopasal.in/api/health > /dev/null`
+3. Schedule: every 5 minutes (`*/5 * * * *`) → **Save**.

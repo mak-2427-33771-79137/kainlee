@@ -62,7 +62,7 @@ export default async function GuestDetail({ params }) {
         </div>
       </div>
       <GuestEditor
-        event={{ id: ev.id, functions: ev.functions.map((f) => ({ id: f.id, name: f.name, when: `${fmtDate(f.starts_at)}, ${fmtHrs(f.starts_at)}` })) }}
+        event={{ id: ev.id, guestroom: !!ev.guestroom_enabled, functions: ev.functions.map((f) => ({ id: f.id, name: f.name, when: `${fmtDate(f.starts_at)}, ${fmtHrs(f.starts_at)}` })) }}
         r={r}
         handlers={handlers}
         vacant={rooms.filter((x) => !taken.has(x.id)).map((x) => ({ id: x.id, name: x.name, location: x.location }))}

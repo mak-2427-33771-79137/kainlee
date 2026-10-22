@@ -1,8 +1,8 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Icon from '@/components/Icon';
 import { admin, toast } from '@/components/client';
-import { sharePdf } from '@/components/sendInvite';
+import { shareCard, prepareCard } from '@/components/sendInvite';
 import { CATEGORIES } from '@/lib/consts';
 
 export default function SendQueue({ event, all }) {
@@ -13,6 +13,8 @@ export default function SendQueue({ event, all }) {
   const [skip, setSkip] = useState([]);
   const [sent, setSent] = useState(0);
   const [busy, setBusy] = useState(false);
+  // get the card image ready while the coordinator reads the message
+  useEffect(() => { if (cur?.id) prepareCard(cur.id, kind).catch(() => {}); }, [cur?.id, kind]);
 
   const next = async (sk = skip) => {
     setBusy(true);
@@ -39,7 +41,8 @@ export default function SendQueue({ event, all }) {
           </select>
         </div>
         <p className="mu" style={{ margin: 0, fontSize: 14 }}>
-          Each tap opens WhatsApp with the personalised message ready. Press <b>Send</b> in WhatsApp, come back, and the next guest is ready.
+          <b>Send card + message</b> attaches the guest’s invitation card image with the message (on a phone, pick WhatsApp, then the guest).
+          <b> Open chat</b> goes straight to the guest’s number with the message; its link shows the card as a preview. Come back and the next guest is ready.
           Several coordinators can work at once: each guest is held for 10 minutes by whoever opened it, so nobody gets two messages.
         </p>
         {!cur && <button type="button" className="btn pri" style={{ minHeight: 56, fontSize: 17 }} disabled={busy} onClick={() => next([])}><Icon n="send" />Start</button>}
@@ -52,10 +55,11 @@ export default function SendQueue({ event, all }) {
           <div className="row" style={{ justifyContent: 'space-between' }}>
             <div><div className="lbl">Next · {cur.remaining} left · {sent} sent now</div><div className="go" style={{ fontSize: 28 }}>{cur.name}</div><div className="mu num">+{cur.mobile}</div></div>
           </div>
+          {kind === 'invite' && cur.cardPng && <img src={cur.cardPng} alt={`Invitation card for ${cur.name}`} style={{ width: '100%', maxWidth: 520, height: 'auto', borderRadius: 4, boxShadow: '0 10px 20px -10px rgba(0,0,0,.5)' }} />}
           <pre style={{ whiteSpace: 'pre-wrap', background: '#faf6ec', borderRadius: 10, padding: 12, margin: 0, fontFamily: 'var(--body)', fontSize: 14, maxHeight: 260, overflow: 'auto' }}>{cur.text}</pre>
           <div className="row">
-            <a className="btn pri" style={{ minHeight: 56, fontSize: 17, flex: '1 1 220px' }} href={cur.wa} target="_blank" rel="noopener noreferrer" onClick={opened}><Icon n="wa" size={22} />Open WhatsApp</a>
-            {kind === 'invite' && <button type="button" className="btn" onClick={async () => { await sharePdf(cur.id); setSent(sent + 1); next(); }}><Icon n="share" />Share PDF instead</button>}
+            {kind === 'invite' && <button type="button" className="btn pri" style={{ minHeight: 56, fontSize: 17, flex: '1 1 220px' }} onClick={async () => { if (await shareCard(cur.id)) { setSent(sent + 1); setTimeout(() => next(), 400); } }}><Icon n="wa" size={22} />Send card + message</button>}
+            <a className={`btn${kind === 'invite' ? '' : ' pri'}`} style={kind === 'invite' ? { flex: '1 1 160px' } : { minHeight: 56, fontSize: 17, flex: '1 1 220px' }} href={cur.wa} target="_blank" rel="noopener noreferrer" onClick={opened}><Icon n="send" size={20} />{kind === 'invite' ? 'Open chat (message only)' : 'Open WhatsApp'}</a>
             <button type="button" className="btn ghost" onClick={() => { const s = [...skip, cur.id]; setSkip(s); next(s); }}>Skip</button>
           </div>
         </section>

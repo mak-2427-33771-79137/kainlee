@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/Icon';
+import Portal from '@/components/Portal';
 import { api, admin } from '@/components/client';
 
 export default function Shell({ user, events, unread: unread0, perms, regiment, credit, children }) {
@@ -14,6 +15,7 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
   const m = path.match(/^\/admin\/e\/(\d+)/);
   const evId = m ? Number(m[1]) : (events.find((e) => e.status === 'active') || events[0])?.id;
   const base = evId ? `/admin/e/${evId}` : null;
+  const grOn = events.find((e) => e.id === evId)?.guestroom !== false;
   const handlerMe = sp.get('handler') === 'me';
 
   useEffect(() => { setMore(false); }, [path]);
@@ -31,7 +33,7 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
     if (perms.dashboard) items.push({ href: base, label: 'Dashboard', icon: 'dash', on: is(base, true) });
     if (perms.guests) items.push({ href: `${base}/guests`, label: 'All guests', icon: 'users', on: is(`${base}/guests`) && !handlerMe });
     if (perms.handler) items.push({ href: `${base}/guests?handler=me`, label: 'My guests', icon: 'me', on: is(`${base}/guests`) && handlerMe });
-    if (perms.rooms) items.push({ href: `${base}/rooms`, label: 'Guest rooms', icon: 'bed', on: is(`${base}/rooms`) });
+    if (perms.rooms && grOn) items.push({ href: `${base}/rooms`, label: 'Guest rooms', icon: 'bed', on: is(`${base}/rooms`) });
     if (perms.checkin) items.push({ href: `${base}/checkin`, label: 'Check-in', icon: 'scan', on: is(`${base}/checkin`) });
     if (perms.send) items.push({ href: `${base}/send`, label: 'Send invites', icon: 'send', on: is(`${base}/send`) });
     if (perms.catering) items.push({ href: `${base}/catering`, label: 'Catering', icon: 'food', on: is(`${base}/catering`) });
@@ -59,9 +61,9 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
         </select>
       </label>
     )}
-    {items.map((i) => <Link key={i.href} href={i.href} className={`nav${i.on ? ' on' : ''}`}><Icon n={i.icon} />{i.label}</Link>)}
+    {items.map((i) => <Link key={i.href} href={i.href} className={`nav${i.on ? ' on' : ''}`} onClick={() => setMore(false)}><Icon n={i.icon} />{i.label}</Link>)}
     <div className="navh">General</div>
-    {general.map((i) => <Link key={i.href} href={i.href} className={`nav${i.on ? ' on' : ''}`}><Icon n={i.icon} />{i.label}{i.badge ? <span className="badge">{i.badge}</span> : null}</Link>)}
+    {general.map((i) => <Link key={i.href} href={i.href} className={`nav${i.on ? ' on' : ''}`} onClick={() => setMore(false)}><Icon n={i.icon} />{i.label}{i.badge ? <span className="badge">{i.badge}</span> : null}</Link>)}
     <button type="button" className="nav" onClick={logout} style={{ border: 0, background: 'none', cursor: 'pointer', textAlign: 'left' }}><Icon n="out" />Log out</button>
   </>);
 
@@ -84,16 +86,22 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
         <p className="credit" style={{ marginTop: 'auto', paddingTop: 16 }}>{credit}</p>
       </aside>
       <main className="main">{children}</main>
-      <nav className="bottomnav" aria-label="Quick">
-        {quick.map((q) => (
-          <Link key={q.href} href={q.href} className={q.on ? 'on' : ''}><Icon n={q.icon} size={22} />{q.label}{q.badge ? <span style={{ position: 'absolute', top: 2, right: '24%', background: 'var(--red)', borderRadius: 99, fontSize: 10, padding: '0 5px', color: '#fff' }}>{q.badge}</span> : null}</Link>
-        ))}
-        <button type="button" onClick={() => setMore(!more)} className={more ? 'on' : ''} aria-expanded={more}><Icon n="more" size={22} />More</button>
-      </nav>
-      <div className="more-sheet card3 band" hidden={!more} style={{ padding: '14px 10px', maxHeight: '70vh', overflow: 'auto' }}>
-        <div className="mu" style={{ padding: '0 8px 8px', fontSize: 13 }}>{user.name} · {user.roleLabel}</div>
-        <NavList />
-      </div>
+      <Portal>
+        {more && <div className="sheet-dim" onClick={() => setMore(false)} aria-hidden="true" />}
+        <div className="more-sheet card3 band" hidden={!more} style={{ padding: '14px 10px' }}>
+          <div className="row" style={{ justifyContent: 'space-between', padding: '0 8px 8px', flexWrap: 'nowrap' }}>
+            <span className="mu" style={{ fontSize: 13 }}>{user.name} · {user.roleLabel}</span>
+            <button type="button" className="btn sm ghost" onClick={() => setMore(false)} aria-label="Close menu">✕</button>
+          </div>
+          <NavList />
+        </div>
+        <nav className="bottomnav" aria-label="Quick">
+          {quick.map((q) => (
+            <Link key={q.href} href={q.href} className={q.on ? 'on' : ''} onClick={() => setMore(false)}><Icon n={q.icon} size={22} />{q.label}{q.badge ? <span className="nbadge">{q.badge}</span> : null}</Link>
+          ))}
+          <button type="button" onClick={() => setMore(!more)} className={more ? 'on' : ''} aria-expanded={more}><Icon n="more" size={22} />More</button>
+        </nav>
+      </Portal>
     </div>
   );
 }
