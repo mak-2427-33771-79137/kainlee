@@ -1,0 +1,32 @@
+# One click to put an earlier version back on the live site.
+# GitHub → Actions → "Roll back live site" → Run workflow → type the version (e.g. v2026.11.02-1830-ab12cd3).
+# Find versions under the repository's "Tags". Then press Redeploy in Hostinger if it does not start by itself.
+name: Roll back live site
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to restore (see the Tags page), e.g. v2026.11.02-1830-ab12cd3'
+        required: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-branch
+  cancel-in-progress: false
+
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check the version exists
+        run: git rev-parse --verify "refs/tags/${{ github.event.inputs.version }}"
+      - name: Point the live branch at that version
+        run: |
+          git push --force origin "refs/tags/${{ github.event.inputs.version }}^{commit}:refs/heads/live"
+          echo "Live site now set to ${{ github.event.inputs.version }}. Hostinger will redeploy." >> "$GITHUB_STEP_SUMMARY"

@@ -1,0 +1,33 @@
+# Every push to "main" becomes a numbered version (a Git tag) and is copied to the
+# "live" branch, which Hostinger deploys from. Old versions stay available for rollback.
+name: Release to live site
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: live-branch
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Tag this version
+        run: |
+          VERSION="v$(TZ=Asia/Kolkata date +%Y.%m.%d-%H%M)-$(git rev-parse --short HEAD)"
+          git config user.name "release-bot"
+          git config user.email "release-bot@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+          echo "Released $VERSION" >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish to the live branch
+        run: git push --force origin HEAD:refs/heads/live
