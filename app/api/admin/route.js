@@ -210,7 +210,7 @@ A['invitee.save'] = async (u, b, req) => {
     if (invs.length) await k('members').whereIn('invitation_id', invs.map((x) => x.id)).andWhere({ relation: 'self' }).update({ name: displayName(row) });
     if (invs.length && row.category === 'officer') await k('invitations').where({ invitee_id: id }).update({ guestroom_eligible: true });
   } else {
-    if (row.mobile && (await k('invitees').where({ mobile: row.mobile }).first())) bad('An invitee with this mobile number already exists.');
+    if (row.mobile && (await k('invitees').where({ mobile: row.mobile }).whereRaw('LOWER(name) = ?', [row.name.toLowerCase()]).first())) bad('This person (same name and mobile) is already in the directory.');
     [id] = await k('invitees').insert({ ...row, created_at: new Date() });
   }
   if (int(b.event_id)) {

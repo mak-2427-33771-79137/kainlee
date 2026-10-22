@@ -50,7 +50,7 @@ export default function Directory({ people, events }) {
       <div className="grid2" style={{ alignItems: 'start' }}>
         <form className="card3 band stack" style={{ padding: '18px 14px 14px' }} onSubmit={upload}>
           <h2 className="go" style={{ fontSize: 22 }}>Import from Excel</h2>
-          <p className="mu" style={{ margin: 0, fontSize: 14 }}>1. Download the template, 2. fill one row per invitee, 3. upload. Duplicates (same mobile) are skipped.</p>
+          <p className="mu" style={{ margin: 0, fontSize: 14 }}>1. Download the template, 2. fill one row per invitee, 3. upload. Duplicates (same name and mobile) are skipped.</p>
           <a className="btn" href="/api/admin/import"><Icon n="dl" />Download template</a>
           <input type="file" name="file" accept=".xlsx" className="inp" required />
           <label className="field"><span>Also invite them to</span>

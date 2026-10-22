@@ -33,7 +33,8 @@ export async function POST(req) {
   const errors = [...parsed.errors];
   await k.transaction(async (trx) => {
     for (const r of parsed.rows) {
-      let p = r.mobile ? await trx('invitees').where({ mobile: r.mobile }).first() : null;
+      // Same person = same mobile AND same name (families often share one phone)
+      let p = r.mobile ? await trx('invitees').where({ mobile: r.mobile }).whereRaw('LOWER(name) = ?', [r.name.toLowerCase()]).first() : null;
       if (p) skipped++;
       else {
         const { row, extra_cap, ...data } = r;
