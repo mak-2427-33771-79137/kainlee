@@ -35,7 +35,7 @@ jobs:
       APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
       APPSTORE_KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Check the Apple secrets are set
         run: |
@@ -52,7 +52,7 @@ jobs:
           fi
           echo "BUILD_NUMBER=$(date -u +%Y%m%d%H%M)" >> "$GITHUB_ENV"
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
 
@@ -109,7 +109,10 @@ jobs:
           # 3) last resort: unsigned archive
           rm -rf "$RUNNER_TEMP/Kainlee.xcarchive"
           xcodebuild archive "${COMMON[@]}" CODE_SIGNING_ALLOWED=NO | tee archive3.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
-          grep -q "ARCHIVE SUCCEEDED" archive3.log || { echo "::error title=Build failed::See the log above"; tail -60 archive3.log; exit 1; }
+          if ! grep -q "ARCHIVE SUCCEEDED" archive3.log; then
+            for f in archive1.log archive2.log archive3.log; do grep -hE "error:|requires a|No profiles|No Account|not registered" "$f" | sort -u | head -6 | sed "s/^/::error title=$f::/"; done
+            exit 1
+          fi
 
       - name: Sign for the App Store and upload to TestFlight
         if: env.HAVE_SECRETS == 'yes'
@@ -135,7 +138,7 @@ jobs:
           if grep -qE "EXPORT SUCCEEDED|Upload succeeded|Uploaded" export.log; then
             echo "::notice title=Uploaded::Version $APP_VERSION ($BUILD_NUMBER) uploaded. It appears in App Store Connect › TestFlight after Apple finishes processing (usually 10–30 minutes)."
           else
-            echo "::error title=Upload failed::See the log above"
+            grep -hiE "error|failed|cannot|could not|not found|agreement|permission|denied" export.log | sort -u | head -12 | sed "s/^/::error title=Upload failed::/"
             exit 1
           fi
 
