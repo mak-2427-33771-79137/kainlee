@@ -1,0 +1,144 @@
+name: iOS app to TestFlight
+
+# Builds the Kainlee iOS app (mobile/) on a GitHub Mac and uploads it to TestFlight.
+# Start it: GitHub › Actions › "iOS app to TestFlight" › Run workflow
+#           (or push to the "testflight" branch, or push a tag like ios-v1.0.1).
+# Needs these repository secrets (Settings › Secrets and variables › Actions):
+#   APPLE_TEAM_ID        10-character Team ID (developer.apple.com › Account › Membership)
+#   APPSTORE_KEY_ID      App Store Connect API key ID (Users and Access › Integrations › Team Keys, access: Admin)
+#   APPSTORE_ISSUER_ID   Issuer ID shown above that key list
+#   APPSTORE_KEY_P8      the whole text of the downloaded AuthKey_XXXX.p8 file
+# Signing is done by Apple (cloud-managed certificate), so no certificates or profiles are stored here.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "App version shown in the App Store (leave as is unless releasing a new version)"
+        required: false
+        default: ""
+  push:
+    branches: [testflight]
+    tags: ["ios-v*"]
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+      APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+      APPSTORE_KEY_P8: ${{ secrets.APPSTORE_KEY_P8 }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check the Apple secrets are set
+        run: |
+          missing=""
+          for v in APPLE_TEAM_ID APPSTORE_KEY_ID APPSTORE_ISSUER_ID APPSTORE_KEY_P8; do
+            [ -z "${!v}" ] && missing="$missing $v"
+          done
+          if [ -n "$missing" ]; then
+            echo "::warning title=Missing secrets::Only checking that the app builds. To upload to TestFlight add these in GitHub › Settings › Secrets and variables › Actions:$missing"
+            echo "HAVE_SECRETS=no" >> "$GITHUB_ENV"
+          else
+            echo "All four Apple secrets are present."
+            echo "HAVE_SECRETS=yes" >> "$GITHUB_ENV"
+          fi
+          echo "BUILD_NUMBER=$(date -u +%Y%m%d%H%M)" >> "$GITHUB_ENV"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Use the newest Xcode
+        run: |
+          X=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$X/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install and prepare the iOS project
+        working-directory: mobile
+        run: |
+          npm ci --no-audit --no-fund
+          npx cap sync ios
+
+      - name: App Store Connect key
+        if: env.HAVE_SECRETS == 'yes'
+        run: |
+          mkdir -p "$HOME/private_keys"
+          KEY="$HOME/private_keys/AuthKey_${APPSTORE_KEY_ID}.p8"
+          printf '%s\n' "$APPSTORE_KEY_P8" | sed 's/\\n/\n/g' > "$KEY"
+          if ! grep -q "BEGIN PRIVATE KEY" "$KEY"; then
+            echo "::error title=Bad key::APPSTORE_KEY_P8 must contain the whole .p8 file, including the BEGIN/END PRIVATE KEY lines."
+            exit 1
+          fi
+          echo "ASC_KEY_PATH=$KEY" >> "$GITHUB_ENV"
+          V="${{ github.event.inputs.version }}"
+          if [ -z "$V" ] && [[ "$GITHUB_REF_NAME" == ios-v* ]]; then V="${GITHUB_REF_NAME#ios-v}"; fi
+          echo "APP_VERSION=${V:-1.0.0}" >> "$GITHUB_ENV"
+
+      - name: Build the app (archive)
+        working-directory: mobile/ios/App
+        run: |
+          APP_VERSION="${APP_VERSION:-1.0.0}"
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$APPSTORE_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID")
+          COMMON=(-project App.xcodeproj -scheme App -configuration Release -destination "generic/platform=iOS"
+                  -archivePath "$RUNNER_TEMP/Kainlee.xcarchive"
+                  MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" DEVELOPMENT_TEAM="$APPLE_TEAM_ID")
+          echo "Version $APP_VERSION, build $BUILD_NUMBER"
+          if [ "$HAVE_SECRETS" != "yes" ]; then
+            xcodebuild archive "${COMMON[@]}" CODE_SIGNING_ALLOWED=NO | tee check.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+            grep -q "ARCHIVE SUCCEEDED" check.log || { echo "::error title=Build failed::See the log above"; tail -80 check.log; exit 1; }
+            echo "::notice title=Build check passed::The app builds. Add the four Apple secrets to upload to TestFlight."
+            exit 0
+          fi
+          # 1) normal automatic signing (works once a device is registered on the team)
+          if xcodebuild archive "${COMMON[@]}" CODE_SIGN_STYLE=Automatic "${AUTH[@]}" | tee archive1.log | grep -E "error:|warning: .*sign|ARCHIVE (SUCCEEDED|FAILED)"; then :; fi
+          if grep -q "ARCHIVE SUCCEEDED" archive1.log; then echo "Archived with automatic signing."; exit 0; fi
+          echo "::notice::Automatic signing for the archive was not possible (usually: no iPhone registered yet). Building unsigned; Apple signs it for distribution in the next step."
+          # 2) sign locally (ad hoc) so the push-notification entitlement is kept; distribution signing happens at export
+          rm -rf "$RUNNER_TEMP/Kainlee.xcarchive"
+          if xcodebuild archive "${COMMON[@]}" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO PROVISIONING_PROFILE_SPECIFIER="" AD_HOC_CODE_SIGNING_ALLOWED=YES | tee archive2.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)"; then :; fi
+          if grep -q "ARCHIVE SUCCEEDED" archive2.log; then echo "Archived (ad hoc)."; exit 0; fi
+          # 3) last resort: unsigned archive
+          rm -rf "$RUNNER_TEMP/Kainlee.xcarchive"
+          xcodebuild archive "${COMMON[@]}" CODE_SIGNING_ALLOWED=NO | tee archive3.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" archive3.log || { echo "::error title=Build failed::See the log above"; tail -60 archive3.log; exit 1; }
+
+      - name: Sign for the App Store and upload to TestFlight
+        if: env.HAVE_SECRETS == 'yes'
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>${APPLE_TEAM_ID}</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict>
+          </plist>
+          EOF
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Kainlee.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" \
+            -authenticationKeyID "$APPSTORE_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" 2>&1 | tee export.log
+          if grep -qE "EXPORT SUCCEEDED|Upload succeeded|Uploaded" export.log; then
+            echo "::notice title=Uploaded::Version $APP_VERSION ($BUILD_NUMBER) uploaded. It appears in App Store Connect › TestFlight after Apple finishes processing (usually 10–30 minutes)."
+          else
+            echo "::error title=Upload failed::See the log above"
+            exit 1
+          fi
+
+      - name: Remove the key
+        if: always()
+        run: rm -rf "$HOME/private_keys"
