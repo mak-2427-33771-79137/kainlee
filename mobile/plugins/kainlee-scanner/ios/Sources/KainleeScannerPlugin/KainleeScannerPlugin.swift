@@ -15,7 +15,11 @@ public class KainleeScannerPlugin: CAPPlugin, CAPBridgedPlugin {
     ]
 
     @objc func status(_ call: CAPPluginCall) {
-        call.resolve(["camera": Self.permission(), "available": AVCaptureDevice.default(for: .video) != nil])
+        call.resolve([
+            "camera": Self.permission(),
+            "available": AVCaptureDevice.default(for: .video) != nil,
+            "showing": KainleeScannerViewController.current != nil
+        ])
     }
 
     @objc func scan(_ call: CAPPluginCall) {
@@ -68,6 +72,7 @@ public class KainleeScannerPlugin: CAPPlugin, CAPBridgedPlugin {
 }
 
 final class KainleeScannerViewController: UIViewController, AVCaptureMetadataOutputObjectsDelegate {
+    static weak var current: KainleeScannerViewController?
     var titleText = ""
     var onFinish: ((String?, String?) -> Void)?
 
@@ -85,6 +90,7 @@ final class KainleeScannerViewController: UIViewController, AVCaptureMetadataOut
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        Self.current = self
         view.backgroundColor = .black
         configureSession()
         buildOverlay()

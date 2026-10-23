@@ -98,8 +98,9 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
               if (r.code) { onCode(r.code); return; }
               if (r.cancelled) return;
               if (r.denied) { toast(r.error, true); return; }
-              // native scanner missing (older app) or failed: say why, then use the in-page camera
+              // native scanner missing, failed or not answering: say why, then use the in-page camera
               if (!r.missing) toast(`App scanner: ${r.error}. Using the page camera instead.`, true);
+              setDiag((d) => ({ ...(d || {}), lastScan: r.error }));
             }
             setScan(!scan);
           }}><Icon n="scan" size={26} />{scan ? 'Close camera' : 'Scan entry QR'}</button>
@@ -107,8 +108,10 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
           {diag && (diag.bridge || diag.inApp) && (
             <div className="mu" style={{ fontSize: 12.5 }}>
               {!diag.bridge ? 'App link: not connected (scanner uses the page camera)'
+                : diag.hung ? 'App scanner: the app is not answering (page camera is used)'
                 : diag.scanner ? `App scanner: ready${diag.camera === 'denied' ? ' · camera access is off in iPhone Settings › Kainlee' : ''}`
-                : 'App scanner: not in this app version. Update Kainlee from TestFlight.'} · Version {BUILD}
+                : 'App scanner: not in this app version. Update Kainlee from TestFlight.'}
+              {diag.lastScan ? ` · last try: ${diag.lastScan}` : ''} · Version {BUILD}
             </div>
           )}
           <label className="field"><span>Or search name, rank, city, mobile</span>
