@@ -203,16 +203,23 @@ function Invitation({ token, path, data, setData, t, lang, setLang }) {
                   </select></label>
                 )}
                 <label className="field"><span>{t.age}</span><select className="inp" id={`g-age-${i}`} value={m.age_group} disabled={closed || m.is_walkin} onChange={(e) => upd(i, { age_group: e.target.value })}>{AGE_GROUPS.map((a) => <option key={a} value={a}>{ageLabel(a)}</option>)}</select></label>
-                <label className="field"><span>{t.meal}</span><select className="inp" id={`g-meal-${i}`} value={m.meal} disabled={closed || m.is_walkin} onChange={(e) => upd(i, { meal: e.target.value })}><option value="veg">{t.veg}</option><option value="nonveg">{t.nonveg}</option></select></label>
               </div>
-              {!m.is_walkin && event.dietNotes && (() => {
-                // switch: on shows the note box; off hides it and clears the note
-                const on = m.dietOn ?? !!m.meal_note;
+              {/* Meal, with the dietary-note switch beside it (when the event allows notes) */}
+              {(() => {
+                const notesOk = !m.is_walkin && event.dietNotes;
+                const on = notesOk && (m.dietOn ?? !!m.meal_note);
                 return (<>
-                  <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', gap: 10, background: 'var(--well)', borderRadius: 10, padding: '8px 10px' }}>
-                    <span style={{ fontSize: 14.5 }}>{t.addDietNote}</span>
-                    <button type="button" className="tog" id={`g-diet-${i}`} aria-pressed={on} aria-label={`${t.addDietNote}: ${m.name}`} disabled={closed}
-                      onClick={() => upd(i, on ? { dietOn: false, meal_note: '' } : { dietOn: true })}><i /></button>
+                  <div style={{ display: 'grid', gridTemplateColumns: notesOk ? 'minmax(0,1fr) auto' : 'minmax(0,1fr)', gap: 10, alignItems: 'start' }}>
+                    <label className="field"><span>{t.meal}</span><select className="inp" id={`g-meal-${i}`} value={m.meal} disabled={closed || m.is_walkin} onChange={(e) => upd(i, { meal: e.target.value })}><option value="veg">{t.veg}</option><option value="nonveg">{t.nonveg}</option></select></label>
+                    {notesOk && (
+                      <div className="field">
+                        <span>{t.dietNote}</span>
+                        <div style={{ height: 'var(--inp-h, 44px)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <button type="button" className="tog" id={`g-diet-${i}`} aria-pressed={on} aria-label={`${t.addDietNote}: ${m.name}`} disabled={closed}
+                            onClick={() => upd(i, on ? { dietOn: false, meal_note: '' } : { dietOn: true })}><i /></button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                   {on && <input className="inp" id={`g-note-${i}`} value={m.meal_note || ''} disabled={closed} onChange={(e) => upd(i, { meal_note: e.target.value })} placeholder={t.mealNote} aria-label={t.mealNote} style={{ fontSize: 14 }} autoFocus={m.dietOn === true && !m.meal_note} />}
                 </>);
