@@ -45,8 +45,10 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
   const open = async (id) => {
     try { setParty(await ci('checkin.party', { id })); setAdmitted(false); setResults([]); setQ(''); } catch (e) { toast(e.message, true); }
   };
-  const onCode = async (code) => {
+  const onCode = async (raw) => {
     setScan(false);
+    const code = String(raw || '').trim();
+    if (!/^KLN-/i.test(code)) { haptic(false); toast('This QR is not a Kainlee entry pass. Scan the QR on the guest’s card or entry pass.', true); return; }
     try { const r = await ci('checkin.lookup', { code, event_id: event.id }); await open(r.id); haptic(true); if (navigator.vibrate) navigator.vibrate(60); } catch (e) { haptic(false); toast(e.message, true); }
   };
   const mark = async (m, status) => {

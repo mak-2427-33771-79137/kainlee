@@ -119,10 +119,27 @@ final class KainleeScannerViewController: UIViewController, AVCaptureMetadataOut
         let output = AVCaptureMetadataOutput()
         guard session.canAddOutput(output) else { session.commitConfiguration(); setupError = "The scanner could not start."; return }
         session.addOutput(output)
-        output.setMetadataObjectsDelegate(self, queue: .main)
-        if output.availableMetadataObjectTypes.contains(.qr) { output.metadataObjectTypes = [.qr] }
         session.commitConfiguration()
+        // Set the code types only after the camera is connected: before that the list of
+        // available types can be empty and the scanner would never report a QR.
+        output.setMetadataObjectsDelegate(self, queue: .main)
+        let wanted: [AVMetadataObject.ObjectType] = [.qr]
+        let available = output.availableMetadataObjectTypes
+        if available.contains(.qr) {
+            output.metadataObjectTypes = wanted
+        } else if !available.isEmpty {
+            output.metadataObjectTypes = available // still read whatever this camera supports
+        } else {
+            setupError = "This camera cannot read QR codes."
+            return
+        }
         device = camera
+        // continuous focus helps with small QR codes on a phone screen or printed card
+        if (try? camera.lockForConfiguration()) != nil {
+            if camera.isFocusModeSupported(.continuousAutoFocus) { camera.focusMode = .continuousAutoFocus }
+            if camera.isAutoFocusRangeRestrictionSupported { camera.autoFocusRangeRestriction = .near }
+            camera.unlockForConfiguration()
+        }
 
         let layer = AVCaptureVideoPreviewLayer(session: session)
         layer.videoGravity = .resizeAspectFill
