@@ -144,6 +144,14 @@ jobs:
           security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
           security find-identity -v -p codesigning "$KC"
           echo "SIGN_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+          # the team that owns the profile is the one to sign with (more reliable than a typed Team ID)
+          PROFILE_FILE=~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
+          TEAM=$(security cms -D -i "$PROFILE_FILE" | plutil -extract TeamIdentifier.0 raw -)
+          if [ "$TEAM" != "$(echo "$APPLE_TEAM_ID" | tr -d '[:space:]')" ]; then
+            echo "::warning title=Team ID::The APPLE_TEAM_ID secret does not match your Apple team ($TEAM). Using $TEAM. You can update the secret to $TEAM."
+          fi
+          echo "APPLE_TEAM_ID=$TEAM" >> "$GITHUB_ENV"
+          APPLE_TEAM_ID=$TEAM
           # sign only the app target (not the Swift packages) with the App Store profile
           PBX=mobile/ios/App/App.xcodeproj/project.pbxproj
           sed -i '' "s/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = \"Apple Distribution\"; \"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = \"Apple Distribution\"; PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_UUID\"; PROVISIONING_PROFILE = \"$PROFILE_UUID\"; DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/" "$PBX"
