@@ -13,7 +13,7 @@ export const metadata = { title: 'Event setup' };
 export default async function SettingsPage({ params }) {
   const user = await pageUser();
   const ev = await pageEvent(params);
-  if (!allowed(user, 'events.manage')) return <NoAccess what="event setup" />;
+  if (!allowed(user, 'events.manage', 'events.edit')) return <NoAccess what="event setup" />;
   const k = await db();
   const series = await k('series').orderBy('name');
   return (

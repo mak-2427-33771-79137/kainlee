@@ -2,7 +2,7 @@ import bcrypt from 'bcryptjs';
 import { handler, body, bad, audit } from '@/lib/api';
 import { db } from '@/lib/db';
 import { getAdmin, HttpError } from '@/lib/auth';
-import { can, canOn, ROLES, roleIds, MODULE_IDS } from '@/lib/rbac';
+import { can, canOn, canEditEvent, ROLES, roleIds, MODULE_IDS } from '@/lib/rbac';
 import { rolesChanged, loadRoles } from '@/lib/roles';
 import { getEvent, loadInvitation, saveRsvp, ensureInvitation, displayName, saveGuestroomNote } from '@/lib/data';
 import {
@@ -95,7 +95,7 @@ A['series.save'] = async (u, b, req) => {
 };
 
 A['event.save'] = async (u, b, req) => {
-  if (!can(u.role, 'events.manage')) bad('Not allowed', 403);
+  if (int(b.id) ? !canEditEvent(u.role) : !can(u.role, 'events.manage')) bad('Not allowed', 403);
   const k = await db();
   const name = str(b.name, 160);
   if (!name) bad('Event name is required.');
@@ -140,7 +140,7 @@ A['event.delete'] = async (u, b, req) => {
 };
 
 A['function.save'] = async (u, b, req) => {
-  if (!can(u.role, 'events.manage')) bad('Not allowed', 403);
+  if (!canEditEvent(u.role)) bad('Not allowed', 403);
   const ev = await needEvent(b.event_id);
   const name = str(b.name, 160);
   const at = istInputToDate(b.starts_at);
@@ -156,7 +156,7 @@ A['function.save'] = async (u, b, req) => {
   return { id };
 };
 A['function.delete'] = async (u, b, req) => {
-  if (!can(u.role, 'events.manage')) bad('Not allowed', 403);
+  if (!canEditEvent(u.role)) bad('Not allowed', 403);
   const k = await db();
   const f = await k('functions').where({ id: int(b.id) || 0 }).first();
   if (!f) bad('Not found', 404);
@@ -166,7 +166,7 @@ A['function.delete'] = async (u, b, req) => {
 };
 
 A['templates.save'] = async (u, b, req) => {
-  if (!can(u.role, 'events.manage')) bad('Not allowed', 403);
+  if (!canEditEvent(u.role)) bad('Not allowed', 403);
   const ev = await needEvent(b.event_id);
   const t = {};
   for (const key of ['invite_en', 'invite_hi', 'invite_ne', 'reminder_en', 'reminder_hi', 'reminder_ne']) {
@@ -179,7 +179,7 @@ A['templates.save'] = async (u, b, req) => {
 };
 
 A['card.save'] = async (u, b, req) => {
-  if (!can(u.role, 'cards.edit')) bad('Not allowed', 403);
+  if (!can(u.role, 'cards.edit') && !can(u.role, 'events.edit')) bad('Not allowed', 403);
   const k = await db();
   const html = b.html == null ? null : sanitizeCard(String(b.html).slice(0, 200000));
   if (b.scope === 'series') {
@@ -198,7 +198,7 @@ A['card.save'] = async (u, b, req) => {
 };
 
 A['card.preview'] = async (u, b) => {
-  if (!can(u.role, 'cards.edit')) bad('Not allowed', 403);
+  if (!can(u.role, 'cards.edit') && !can(u.role, 'events.edit')) bad('Not allowed', 403);
   const ev = await needEvent(b.event_id);
   const { renderCard } = await import('@/lib/cards');
   const { qrDataUrl } = await import('@/lib/guest');
