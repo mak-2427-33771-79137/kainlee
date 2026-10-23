@@ -20,15 +20,12 @@ Because the app loads the live site, **website updates reach the app immediately
 
 1. Install **Xcode** from the Mac App Store and open it once (accept the licence).
 2. Install **Node.js 22** from nodejs.org (if `node -v` doesn't already show v20 or newer).
-3. Get the code:
+3. Get the code with **GitHub Desktop** (File › Clone repository › kainlee, into Documents). Later, to update: **Fetch origin › Pull origin**.
+4. In Terminal, run the setup script (add your 10-character Apple **Team ID** at the end if you have it — developer.apple.com › Account › Membership):
    ```bash
-   git clone https://github.com/mak-2427-33771-79137/kainlee.git
-   cd kainlee/mobile
-   npm install
-   npx cap sync ios
-   npx cap open ios
+   bash ~/Documents/kainlee/mobile/setup-mac.sh ABCDE12345
    ```
-   Xcode opens the **App** project. (Later, after `git pull`, run `npm install && npx cap sync ios` again.)
+   It checks Xcode and Node.js, installs everything, prepares the project, sets your signing team and opens Xcode. Run it again after every Pull.
 
 ## 2. Apple Developer website (developer.apple.com › Account)
 
@@ -49,10 +46,11 @@ hPanel › your Node.js app › **Environment variables** → add:
 
 ## 4. Signing in Xcode
 
+Push Notifications are already turned on in the project. If you gave your Team ID to the setup script, signing is already set too. Otherwise:
+
 1. Left panel: click **App** (blue icon) → target **App** → **Signing & Capabilities**.
-2. Tick **Automatically manage signing**, choose your **Team**. Bundle Identifier: `com.makjal.kainlee`.
-3. Click **+ Capability** → add **Push Notifications**.
-4. **General** tab: Version `1.0.0`, Build `1`. Under Supported Destinations keep iPhone and iPad.
+2. Tick **Automatically manage signing** and choose your **Team**. Bundle Identifier: `com.makjal.kainlee`.
+3. First time only: Xcode → **Settings › Accounts** → **+** → sign in with your Apple ID, if no Team appears.
 
 ## 5. Try it on your iPhone
 
