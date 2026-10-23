@@ -112,39 +112,56 @@ jobs:
               note("error", f"Apple said {e.code}", f"{hint} {body}"); raise SystemExit(1)
           PY
 
+      - name: Build check only (no Apple secrets yet)
+        if: env.HAVE_SECRETS != 'yes'
+        working-directory: mobile/ios/App
+        run: |
+          xcodebuild archive -project App.xcodeproj -scheme App -configuration Release -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/Kainlee.xcarchive" CODE_SIGNING_ALLOWED=NO | tee check.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" check.log || { grep -hE "error:" check.log | sort -u | head -8 | sed "s/^/::error title=Build failed::/"; exit 1; }
+          echo "::notice title=Build check passed::The app builds. Add the four Apple secrets to upload to TestFlight."
+
+      - name: Create signing certificate and profile (App Store Connect API)
+        if: env.HAVE_SECRETS == 'yes'
+        env:
+          BUNDLE_ID: com.makjal.kainlee
+        run: |
+          python3 mobile/ci/asc_signing.py setup
+
+      - name: Install signing into a temporary keychain
+        if: env.HAVE_SECRETS == 'yes'
+        run: |
+          KC="$RUNNER_TEMP/kainlee.keychain-db"
+          KCPW=$(openssl rand -hex 16)
+          echo "::add-mask::$KCPW"
+          security create-keychain -p "$KCPW" "$KC"
+          security set-keychain-settings -lut 21600 "$KC"
+          security unlock-keychain -p "$KCPW" "$KC"
+          curl -fsSL -o "$RUNNER_TEMP/wwdr.cer" https://www.apple.com/certificateauthority/AppleWWDRCAG3.cer && \
+            security import "$RUNNER_TEMP/wwdr.cer" -k "$KC" -A >/dev/null 2>&1 || true
+          security import "$SIGN_P12" -P "$SIGN_P12_PASS" -A -t cert -f pkcs12 -k "$KC"
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KCPW" "$KC" >/dev/null
+          security list-keychains -d user -s "$KC" $(security list-keychains -d user | tr -d '"')
+          security find-identity -v -p codesigning "$KC"
+          echo "SIGN_KEYCHAIN=$KC" >> "$GITHUB_ENV"
+          # sign only the app target (not the Swift packages) with the App Store profile
+          PBX=mobile/ios/App/App.xcodeproj/project.pbxproj
+          sed -i '' "s/CODE_SIGN_STYLE = Automatic;/CODE_SIGN_STYLE = Manual; CODE_SIGN_IDENTITY = \"Apple Distribution\"; \"CODE_SIGN_IDENTITY[sdk=iphoneos*]\" = \"Apple Distribution\"; PROVISIONING_PROFILE_SPECIFIER = \"$PROFILE_NAME\"; DEVELOPMENT_TEAM = $APPLE_TEAM_ID;/" "$PBX"
+          grep -c "PROVISIONING_PROFILE_SPECIFIER" "$PBX"
+
       - name: Build the app (archive)
+        if: env.HAVE_SECRETS == 'yes'
         working-directory: mobile/ios/App
         run: |
           APP_VERSION="${APP_VERSION:-1.0.0}"
-          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" -authenticationKeyID "$APPSTORE_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID")
-          COMMON=(-project App.xcodeproj -scheme App -configuration Release -destination "generic/platform=iOS"
-                  -archivePath "$RUNNER_TEMP/Kainlee.xcarchive"
-                  MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" DEVELOPMENT_TEAM="$APPLE_TEAM_ID")
           echo "Version $APP_VERSION, build $BUILD_NUMBER"
-          if [ "$HAVE_SECRETS" != "yes" ]; then
-            xcodebuild archive "${COMMON[@]}" CODE_SIGNING_ALLOWED=NO | tee check.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
-            grep -q "ARCHIVE SUCCEEDED" check.log || { echo "::error title=Build failed::See the log above"; tail -80 check.log; exit 1; }
-            echo "::notice title=Build check passed::The app builds. Add the four Apple secrets to upload to TestFlight."
-            exit 0
-          fi
-          # 1) normal automatic signing (works once a device is registered on the team)
-          if xcodebuild archive "${COMMON[@]}" CODE_SIGN_STYLE=Automatic "${AUTH[@]}" | tee archive1.log | grep -E "error:|warning: .*sign|ARCHIVE (SUCCEEDED|FAILED)"; then :; fi
-          if grep -q "ARCHIVE SUCCEEDED" archive1.log; then echo "Archived with automatic signing."; exit 0; fi
-          grep -hE "error:" archive1.log | sort -u | head -4 | sed "s/^/::notice title=Automatic signing::/"
-          echo "::notice::Automatic signing for the archive was not possible (usually: no iPhone registered yet). Building unsigned; Apple signs it for distribution in the next step."
-          # 2) sign locally (ad hoc) so the push-notification entitlement is kept; distribution signing happens at export
-          rm -rf "$RUNNER_TEMP/Kainlee.xcarchive"
-          if xcodebuild archive "${COMMON[@]}" CODE_SIGN_STYLE=Manual CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO PROVISIONING_PROFILE_SPECIFIER="" AD_HOC_CODE_SIGNING_ALLOWED=YES | tee archive2.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)"; then :; fi
-          if grep -q "ARCHIVE SUCCEEDED" archive2.log; then echo "Archived (ad hoc)."; exit 0; fi
-          # 3) last resort: unsigned archive
-          rm -rf "$RUNNER_TEMP/Kainlee.xcarchive"
-          xcodebuild archive "${COMMON[@]}" CODE_SIGNING_ALLOWED=NO | tee archive3.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
-          if ! grep -q "ARCHIVE SUCCEEDED" archive3.log; then
-            for f in archive1.log archive2.log archive3.log; do grep -hE "error:|requires a|No profiles|No Account|not registered" "$f" | sort -u | head -6 | sed "s/^/::error title=$f::/"; done
-            exit 1
-          fi
+          xcodebuild archive -project App.xcodeproj -scheme App -configuration Release -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/Kainlee.xcarchive" \
+            MARKETING_VERSION="$APP_VERSION" CURRENT_PROJECT_VERSION="$BUILD_NUMBER" \
+            OTHER_CODE_SIGN_FLAGS="--keychain $SIGN_KEYCHAIN" | tee archive.log | grep -E "error:|ARCHIVE (SUCCEEDED|FAILED)" || true
+          grep -q "ARCHIVE SUCCEEDED" archive.log || { grep -hE "error:" archive.log | sort -u | head -8 | sed "s/^/::error title=Build failed::/"; exit 1; }
 
-      - name: Sign for the App Store and upload to TestFlight
+      - name: Sign for the App Store (export)
         if: env.HAVE_SECRETS == 'yes'
         run: |
           cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
@@ -153,24 +170,48 @@ jobs:
           <plist version="1.0">
           <dict>
             <key>method</key><string>app-store-connect</string>
-            <key>destination</key><string>upload</string>
+            <key>destination</key><string>export</string>
             <key>teamID</key><string>${APPLE_TEAM_ID}</string>
-            <key>signingStyle</key><string>automatic</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>signingCertificate</key><string>Apple Distribution</string>
+            <key>provisioningProfiles</key>
+            <dict>
+              <key>com.makjal.kainlee</key><string>${PROFILE_NAME}</string>
+            </dict>
             <key>uploadSymbols</key><true/>
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict>
           </plist>
           EOF
           xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Kainlee.xcarchive" \
-            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" \
-            -allowProvisioningUpdates -authenticationKeyPath "$ASC_KEY_PATH" \
-            -authenticationKeyID "$APPSTORE_KEY_ID" -authenticationKeyIssuerID "$APPSTORE_ISSUER_ID" 2>&1 | tee export.log
-          if grep -qE "EXPORT SUCCEEDED|Upload succeeded|Uploaded" export.log; then
-            echo "::notice title=Uploaded::Version $APP_VERSION ($BUILD_NUMBER) uploaded. It appears in App Store Connect › TestFlight after Apple finishes processing (usually 10–30 minutes)."
-          else
-            grep -hiE "error|failed|cannot|could not|not found|agreement|permission|denied" export.log | sort -u | head -12 | sed "s/^/::error title=Upload failed::/"
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" -exportPath "$RUNNER_TEMP/export" 2>&1 | tee export.log
+          IPA=$(ls "$RUNNER_TEMP"/export/*.ipa 2>/dev/null | head -1)
+          if [ -z "$IPA" ]; then
+            grep -hiE "error|failed" export.log | sort -u | head -10 | sed "s/^/::error title=Export failed::/"
             exit 1
           fi
+          echo "IPA=$IPA" >> "$GITHUB_ENV"
+          unzip -q -o "$IPA" -d "$RUNNER_TEMP/ipa" && codesign -d --entitlements - --xml "$RUNNER_TEMP/ipa/Payload/App.app" 2>/dev/null | grep -o "aps-environment</key><string>[a-z]*" | sed "s/^/::notice title=Push entitlement::/" || true
+
+      - name: Upload to TestFlight
+        if: env.HAVE_SECRETS == 'yes'
+        run: |
+          set +e
+          xcrun altool --upload-app -f "$IPA" -t ios --apiKey "$APPSTORE_KEY_ID" --apiIssuer "$APPSTORE_ISSUER_ID" 2>&1 | tee upload.log
+          code=${PIPESTATUS[0]}
+          set -e
+          if [ "$code" = "0" ] && ! grep -qiE "^ERROR|error:" upload.log; then
+            echo "::notice title=Uploaded::Version ${APP_VERSION:-1.0.0} ($BUILD_NUMBER) uploaded. It appears in App Store Connect › TestFlight after Apple finishes processing (usually 10–30 minutes)."
+          else
+            grep -hiE "error|failed|invalid|missing" upload.log | sort -u | head -12 | sed "s/^/::error title=Upload failed::/"
+            exit 1
+          fi
+
+      - name: Revoke the temporary certificate and profile
+        if: always() && env.HAVE_SECRETS == 'yes'
+        run: |
+          python3 mobile/ci/asc_signing.py cleanup || true
+          [ -n "$SIGN_KEYCHAIN" ] && security delete-keychain "$SIGN_KEYCHAIN" || true
 
       - name: Remove the key
         if: always()
