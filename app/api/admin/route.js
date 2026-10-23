@@ -216,7 +216,7 @@ function inviteeRow(b) {
   if (!name || !isLatinName(name)) bad('Enter the name in English letters.');
   const mobile = b.mobile ? normalizeMobile(b.mobile) : null;
   if (b.mobile && !mobile) bad('Mobile number is not valid.');
-  return { category, rank: str(b.rank, 60), name, mobile, city: str(b.city, 100), lang: ['en', 'hi', 'ne'].includes(b.lang) ? b.lang : 'en', notes: str(b.notes, 300) };
+  return { category, rank: str(b.rank, 60), name, mobile, city: str(b.city, 100), lang: ['en', 'hi', 'ne'].includes(b.lang) ? b.lang : 'en', notes: str(b.notes, 300), ...(b.vip != null ? { vip: !!b.vip } : {}) };
 }
 
 A['invitee.save'] = async (u, b, req) => {

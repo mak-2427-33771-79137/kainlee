@@ -8,6 +8,8 @@ import NoAccess from '@/components/NoAccess';
 import March from '@/components/March';
 import ExportMenu from '@/components/ExportMenu';
 import { AutoRefresh, Count } from '@/components/Live';
+import { computeInsights } from '@/lib/insights';
+import Insights from './Insights';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Dashboard' };
@@ -29,15 +31,9 @@ export default async function Dashboard({ params, searchParams }) {
   const G = s.guestroom;
   const g = (q) => `/admin/e/${ev.id}/guests?${new URLSearchParams(q)}`;
   const maxCat = Math.max(1, ...CATEGORIES.map((c) => s.categories[c.id].invited));
-  const handlers = {};
-  for (const inv of invs) {
-    const key = inv.handler_id || 0;
-    handlers[key] ||= { id: key, name: inv.handler_name || 'Unassigned', n: 0, att: 0 };
-    handlers[key].n++;
-    if (inv.rsvp_status === 'attending') handlers[key].att++;
-  }
-  const hl = Object.values(handlers).sort((a, b) => (a.id === 0 ? 1 : b.id === 0 ? -1 : b.n - a.n));
   const canExport = can(user.role, 'export.all');
+  const x = computeInsights(invs, ev, { totalRooms: Number(rooms.n), fnId: sp.phase === 'day' && sp.fn ? Number(sp.fn) : null });
+  const phase = ['before', 'day', 'after'].includes(sp.phase) ? sp.phase : x.phase;
 
   return (
     <>
@@ -113,16 +109,9 @@ export default async function Dashboard({ params, searchParams }) {
           </Link>
         )}
 
-        <div className="card3 band tilt3 kpi" style={{ animationDelay: '.55s' }}>
-          <span className="lbl">Who looks after whom</span>
-          {hl.slice(0, 6).map((h) => (
-            <Link key={h.id} href={g({ handler: h.id || 'none' })} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 14, color: h.id ? 'inherit' : 'var(--red-text)', textDecoration: 'none', borderBottom: '1px dashed var(--rule)', paddingBottom: 3 }}>
-              <span>{h.name}</span><b className="num">{h.n} <span className="mu" style={{ fontWeight: 400 }}>({h.att} attending)</span></b>
-            </Link>
-          ))}
-          {!hl.length && <span className="mu">No guests yet.</span>}
-        </div>
       </div>
+
+      <Insights x={x} s={s} ev={ev} phase={phase} sp={sp} canExport={canExport} canSend={can(user.role, 'invites.send')} />
     </>
   );
 }

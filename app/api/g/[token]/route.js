@@ -30,6 +30,12 @@ export const POST = handler(async (req, { params }) => {
   const inv = await k('invitations').where({ token }).first();
   if (!inv) bad('This invitation link is not valid.', 404);
 
+  if (b.action === 'open') {
+    // first time the guest's own phone shows the link (link previews don't run scripts, so they don't count)
+    if (!inv.link_opened_at) await k('invitations').where({ id: inv.id }).update({ link_opened_at: new Date() });
+    return { ok: true };
+  }
+
   if (b.action === 'pin') {
     if (inv.pin_locked_until && new Date(inv.pin_locked_until) > new Date()) bad('locked', 429);
     const given = String(b.pin || '').trim();
@@ -39,7 +45,11 @@ export const POST = handler(async (req, { params }) => {
       await k('invitations').where({ id: inv.id }).update({ pin_failures: f >= 5 ? 0 : f, pin_locked_until: f >= 5 ? new Date(Date.now() + 15 * 60000) : null });
       bad(f >= 5 ? 'locked' : 'wrong', f >= 5 ? 429 : 401);
     }
-    await k('invitations').where({ id: inv.id }).update({ pin_failures: 0, pin_locked_until: null, guest_last_seen_at: new Date() });
+    const now = new Date();
+    await k('invitations').where({ id: inv.id }).update({
+      pin_failures: 0, pin_locked_until: null, guest_last_seen_at: now,
+      ...(inv.pin_ok_at ? {} : { pin_ok_at: now }), ...(inv.link_opened_at ? {} : { link_opened_at: now }),
+    });
     await startGuestSession(token, inv.id);
     return { ok: true };
   }

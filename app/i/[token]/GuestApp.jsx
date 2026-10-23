@@ -28,6 +28,8 @@ export default function GuestApp({ token, path, next, initial, preview }) {
   const setLang = (l) => { setLangS(l); try { localStorage.setItem('kl_lang', l); } catch {} };
   const t = dict(lang);
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  // note that the guest opened the link (for the reply funnel on the dashboard)
+  useEffect(() => { api(`/api/g/${token}`, { action: 'open' }).catch(() => {}); }, [token]);
   // After the PIN, continue to the card / PDF if that is what the guest opened
   useEffect(() => { if (data && next) location.replace(next); }, [data, next]);
   if (!data) return <Pin token={token} t={t} lang={lang} setLang={setLang} preview={preview} onOpen={setData} />;

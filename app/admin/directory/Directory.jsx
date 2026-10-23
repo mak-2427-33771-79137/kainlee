@@ -6,7 +6,7 @@ import Modal from '@/components/Modal';
 import { admin, toast } from '@/components/client';
 import { CATEGORIES } from '@/lib/consts';
 
-const blank = { category: 'officer', rank: '', name: '', mobile: '', city: '', lang: 'en', notes: '' };
+const blank = { category: 'officer', rank: '', name: '', mobile: '', city: '', lang: 'en', notes: '', vip: false };
 
 export default function Directory({ people, events, canDelete }) {
   const router = useRouter();
@@ -83,7 +83,7 @@ export default function Directory({ people, events, canDelete }) {
             <tbody>{list.slice(0, limit).map((p) => (
               <tr key={p.id}>
                 <td><input type="checkbox" aria-label={`Select ${p.name}`} checked={sel.has(p.id)} onChange={() => { const s = new Set(sel); s.has(p.id) ? s.delete(p.id) : s.add(p.id); setSel(s); }} /></td>
-                <td><b>{[p.rank, p.name].filter(Boolean).join(' ')}</b></td>
+                <td><b>{[p.rank, p.name].filter(Boolean).join(' ')}</b>{p.vip && <span className="chip att" style={{ marginLeft: 6 }}>VIP</span>}</td>
                 <td>{CATEGORIES.find((c) => c.id === p.category)?.short}</td>
                 <td className="num">{p.mobilePretty || '—'}</td><td>{p.city || '—'}</td><td>{p.lang.toUpperCase()}</td>
                 <td className="sub">{p.events.map((e) => evName[e]).filter(Boolean).join(', ') || '—'}</td>
@@ -110,6 +110,7 @@ export default function Directory({ people, events, canDelete }) {
               {!form.id && <label className="field"><span>Invite to</span><select className="inp" id="p-ev" value={form.event_id || ''} onChange={(e) => setForm({ ...form, event_id: e.target.value })}><option value="">Not yet</option>{events.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>}
             </div>
             <label className="field"><span>Notes</span><input className="inp" id="p-notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
+            <label className="row" style={{ gap: 8 }}><input type="checkbox" id="p-vip" checked={!!form.vip} onChange={(e) => setForm({ ...form, vip: e.target.checked })} style={{ width: 20, height: 20, accentColor: '#14a35f' }} /><span><b>VIP</b> <span className="mu" style={{ fontSize: 13 }}>· shown first in “VIPs still to arrive” on the event day</span></span></label>
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <button className="btn pri" disabled={busy}>Save</button>
               {canDelete && form.id && <button type="button" className="btn ghost" style={{ color: 'var(--red-text)' }} disabled={busy} onClick={() => window.confirm(`Delete ${form.name} from the directory and from every event? This cannot be undone.`) && run(async () => { await admin('invitee.delete', { id: form.id }); setForm(null); }, 'Invitee deleted')}><Icon n="x" size={15} />Delete invitee</button>}
