@@ -9,13 +9,21 @@ const plugins = {};
 function withTimeout(promise, ms) {
   return Promise.race([promise, new Promise((resolve) => setTimeout(() => resolve({ __timeout: true }), ms))]);
 }
-export const pluginAvailable = (name) => { try { return !!window.Capacitor?.isPluginAvailable?.(name); } catch { return false; } };
+// The app injects the plugin list (PluginHeaders) itself, so check it directly: isPluginAvailable()
+// only exists after @capacitor/core has loaded, which may not have happened yet.
+export const pluginAvailable = (name) => {
+  try { return !!window.Capacitor?.PluginHeaders?.some((h) => h.name === name); } catch { return false; }
+};
+// Returns { p: plugin }. The plugin itself must never be returned from an async function or
+// awaited: Capacitor plugins are proxies, so `await plugin` calls plugin.then(), which is treated
+// as a native method that does not exist, and the await never finishes. That was why the scanner,
+// downloads and other app features did nothing.
 async function P(name) {
   if (!plugins[name]) {
     const { registerPlugin } = await import('@capacitor/core');
     plugins[name] = registerPlugin(name);
   }
-  return plugins[name];
+  return { p: plugins[name] };
 }
 
 function blobToBase64(blob) {
@@ -38,7 +46,7 @@ export async function nativeScan() {
     // App builds from 23 Oct 2026 have their own scanner (KainleeScanner). Older builds don't,
     // so this rejects with "not implemented" and the caller falls back to the web camera.
     if (!pluginAvailable('KainleeScanner')) return { error: 'not in this app version', missing: true };
-    const s = await P('KainleeScanner');
+    const s = (await P('KainleeScanner')).p;
     // the camera screen appears within a second; if the app has not even acknowledged after 6 s,
     // treat it as not answering. (Once open, scanning can take as long as needed.)
     const opened = s.scan({ title: 'Point at the guest’s entry QR' });
@@ -61,15 +69,15 @@ export async function nativeScan() {
 }
 
 export async function haptic(ok = true) {
-  try { const h = await P('Haptics'); await h.notification({ type: ok ? 'SUCCESS' : 'ERROR' }); } catch {}
+  try { const h = (await P('Haptics')).p; await h.notification({ type: ok ? 'SUCCESS' : 'ERROR' }); } catch {}
 }
 
 /** Share a file (e.g. the card image) with the iOS share sheet: WhatsApp, Messages, Save Image, Files… */
 export async function nativeShareBlob(blob, fileName, text) {
-  const fs = await P('Filesystem');
+  const fs = (await P('Filesystem')).p;
   const w = await withTimeout(fs.writeFile({ path: fileName.replace(/[^\w.-]+/g, '-'), data: await blobToBase64(blob), directory: 'CACHE' }), 15000);
   if (w?.__timeout) throw new Error('the app did not answer while saving the file');
-  const sh = await P('Share');
+  const sh = (await P('Share')).p;
   // the share sheet stays open while the user chooses, so only guard the file write above
   await sh.share({ files: [w.uri], text: text || undefined, dialogTitle: 'Share' });
 }
@@ -85,7 +93,7 @@ export async function nativeSaveUrl(url) {
 
 /** Ask for notification permission and send the device token to the server. */
 export async function registerNativePush(sendToken) {
-  const pn = await P('PushNotifications');
+  const pn = (await P('PushNotifications')).p;
   let perm = await pn.checkPermissions();
   if (perm.receive === 'prompt' || perm.receive === 'prompt-with-rationale') perm = await pn.requestPermissions();
   if (perm.receive !== 'granted') return 'denied';
@@ -100,7 +108,7 @@ export async function registerNativePush(sendToken) {
 }
 
 export async function nativePushState() {
-  try { const pn = await P('PushNotifications'); return (await pn.checkPermissions()).receive; } catch { return 'unsupported'; }
+  try { const pn = (await P('PushNotifications')).p; return (await pn.checkPermissions()).receive; } catch { return 'unsupported'; }
 }
 
 /** What the Check-in screen shows about the app's scanner (helps when something is off). */
@@ -109,7 +117,7 @@ export async function scannerStatus() {
   if (!isNative()) return { bridge: false, inApp, scanner: false };
   if (!pluginAvailable('KainleeScanner')) return { bridge: true, inApp: true, scanner: false, error: 'not in this app version' };
   try {
-    const s = await P('KainleeScanner');
+    const s = (await P('KainleeScanner')).p;
     const r = await withTimeout(s.status(), 4000);
     if (r?.__timeout) return { bridge: true, inApp: true, scanner: false, hung: true };
     return { bridge: true, inApp: true, scanner: true, camera: r.camera };

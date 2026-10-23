@@ -184,12 +184,15 @@ function Scanner({ onCode }) {
   const cb = useRef(onCode);
   cb.current = onCode;
   const [err, setErr] = useState('');
+  const [state, setState] = useState('Starting camera…');
   useEffect(() => {
     let stream, raf, stop = false;
     let detector = null;
     (async () => {
       try {
+        if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('no camera API'), { name: 'NoCameraApi' });
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
+        setState('Camera on · point at the QR');
         const v = video.current;
         v.muted = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('autoplay', '');
         v.srcObject = stream;
@@ -228,6 +231,7 @@ function Scanner({ onCode }) {
     <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: '#050b08', aspectRatio: '4/3' }}>
       <video ref={video} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       <div style={{ position: 'absolute', left: '50%', top: '50%', width: '58%', aspectRatio: '1', transform: 'translate(-50%,-50%)', border: '4px solid var(--red)', borderRadius: 16, boxShadow: '0 0 0 2000px rgba(0,0,0,.35)' }} />
+      {!err && <div style={{ position: 'absolute', left: 10, top: 8, fontSize: 12.5, color: '#fff', textShadow: '0 1px 3px #000' }}>{state}</div>}
       {err && <div className="err" style={{ position: 'absolute', left: 10, right: 10, bottom: 10 }}>{err}</div>}
     </div>
   );
