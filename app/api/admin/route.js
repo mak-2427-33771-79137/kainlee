@@ -11,7 +11,7 @@ import {
 } from '@/lib/util';
 import { setSetting, getSetting } from '@/lib/settings';
 import { xbConfig, xbChannels, xbTemplates, xbSendTemplate, XB_DEFAULT_BASE } from '@/lib/xpressbot';
-import { KINDS, TEMPLATE_TEXT, queueBulk, rememberSite, templateFor, schedule, signedCardUrl } from '@/lib/wa';
+import { KINDS, TEMPLATE_TEXT, queueBulk, queueConfirmation, rememberSite, templateFor, schedule, signedCardUrl } from '@/lib/wa';
 import { buildMessage } from '@/lib/messages';
 import { cardHtmlFor } from '@/lib/guest';
 import { assignSlug, guestPath, EVENT_CODE_RE } from '@/lib/links';
@@ -302,7 +302,9 @@ A['inv.rsvp'] = async (u, b, req) => {
   const ev = await needEvent(inv.event_id);
   const r = await saveRsvp(inv.id, ev, b, { byAdmin: true });
   await audit({ user: u, eventId: ev.id, invitationId: inv.id, action: 'inv.rsvp', details: `${await invName(inv.id)}: ${r.status}, ${r.count} person(s)`, req });
-  return r;
+  // WhatsApp "we have noted your reply" when a liaison officer / admin fills in the reply (if on for this event)
+  const waQueued = await queueConfirmation(inv.id).catch((e) => { console.error('[wa] confirm', e.message); return false; });
+  return { ...r, waQueued: !!waQueued };
 };
 
 A['inv.settings'] = async (u, b, req) => {

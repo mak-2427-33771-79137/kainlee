@@ -25,9 +25,10 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
   const run = async (fn, ok) => { setBusy(true); try { await fn(); if (ok) toast(ok); router.refresh(); } catch (e) { toast(e.message, true); } finally { setBusy(false); } };
 
   const saveRsvp = (decline) => run(async () => {
-    await admin('inv.rsvp', { id: r.id, decline, members: members.map(({ id, name, relation, age_group, meal, meal_note, attending }) => ({ id, name, relation, age_group, meal, meal_note, attending })), guestroom: gr });
+    const res = await admin('inv.rsvp', { id: r.id, decline, members: members.map(({ id, name, relation, age_group, meal, meal_note, attending }) => ({ id, name, relation, age_group, meal, meal_note, attending })), guestroom: gr });
     setDirty(false);
-  }, 'RSVP saved');
+    toast(res?.waQueued ? 'RSVP saved. The guest will get a WhatsApp confirmation in about 2 minutes.' : 'RSVP saved');
+  });
 
   const mark = (mid, fid, status) => run(() => admin('checkin.mark', { member_id: mid, function_id: fid, status }));
 

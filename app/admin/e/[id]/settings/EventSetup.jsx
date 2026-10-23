@@ -62,7 +62,7 @@ export default function EventSetup({ ev, functions, series, templates, placehold
           <div className="lbl" style={{ marginTop: 4 }}>Automatic WhatsApp messages (Xpressbot)</div>
           {[
             ['wa_reminders', 'Reply reminders', 'To guests who have not replied: 3 days and 1 day before the RSVP deadline (0900–2000 hrs).'],
-            ['wa_confirm', 'Reply confirmation', 'When a guest saves their reply: “We have noted: attending, 3 persons”.'],
+            ['wa_confirm', 'Reply confirmation', 'When a guest saves their reply, or a liaison officer fills it in for them: “We have noted: attending, 3 persons”.'],
             ['wa_eventday', 'Event-day reminder', 'At 0700 hrs on each function day, to families coming: time, venue, directions and invitation link.'],
           ].map(([key, title, desc]) => (
             <div key={key} className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: 'var(--well)', borderRadius: 10, padding: '10px 12px' }}>
