@@ -11,5 +11,6 @@ export default async function AccountPage() {
   const k = await db();
   const u = await k('users').where({ id: user.id }).first();
   const subs = await k('push_subscriptions').where({ user_id: user.id }).count({ n: '*' }).first();
-  return <Account u={{ name: u.name, username: u.username, role: ROLES[u.role].label, phone: u.phone || '', notify_all: !!u.notify_all, totp: !!u.totp_enabled, devices: Number(subs.n) }} />;
+  const apps = await k('native_push_tokens').where({ user_id: user.id }).count({ n: '*' }).first();
+  return <Account u={{ name: u.name, username: u.username, role: ROLES[u.role].label, phone: u.phone || '', notify_all: !!u.notify_all, totp: !!u.totp_enabled, devices: Number(subs.n) + Number(apps.n) }} />;
 }

@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '@/components/Icon';
 import March from '@/components/March';
 import { admin, toast } from '@/components/client';
+import { isNative, nativeScan, haptic } from '@/components/native';
 import { RELATION_LABEL, AGE_LABEL, RELATIONS, AGE_GROUPS } from '@/lib/consts';
 
 export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
@@ -30,7 +31,7 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
   };
   const onCode = async (code) => {
     setScan(false);
-    try { const r = await admin('checkin.lookup', { code, event_id: event.id }); await open(r.id); if (navigator.vibrate) navigator.vibrate(60); } catch (e) { toast(e.message, true); }
+    try { const r = await admin('checkin.lookup', { code, event_id: event.id }); await open(r.id); haptic(true); if (navigator.vibrate) navigator.vibrate(60); } catch (e) { haptic(false); toast(e.message, true); }
   };
   const mark = async (m, status) => {
     const cur = m.fn[fn]?.attendance;
@@ -65,7 +66,7 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
 
       <div className="grid2" style={{ alignItems: 'start', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,340px),1fr))' }}>
         <section className="card3 band stack" style={{ padding: '18px 14px 14px' }}>
-          <button type="button" className="btn pri" style={{ minHeight: 64, fontSize: 18 }} onClick={() => setScan(!scan)}><Icon n="scan" size={26} />{scan ? 'Close camera' : 'Scan entry QR'}</button>
+          <button type="button" className="btn pri" style={{ minHeight: 64, fontSize: 18 }} onClick={async () => { if (isNative()) { const c = await nativeScan(); if (c) onCode(c); return; } setScan(!scan); }}><Icon n="scan" size={26} />{scan ? 'Close camera' : 'Scan entry QR'}</button>
           {scan && <Scanner onCode={onCode} />}
           <label className="field"><span>Or search name, rank, city, mobile</span>
             <input className="inp" id="ci-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. Gurung" style={{ fontSize: 17 }} autoComplete="off" />

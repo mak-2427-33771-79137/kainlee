@@ -1,5 +1,6 @@
 'use client';
 import { admin, toast } from './client';
+import { isNative, nativeShareBlob } from './native';
 
 const coarse = () => typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
 
@@ -72,6 +73,18 @@ async function copyImage(blobPromise) {
  * Computers: opens the guest's WhatsApp chat with the message and copies the card image to paste in.
  */
 export async function shareCard(id, kind = 'invite') {
+  if (isNative()) {
+    try {
+      const prep = await prepareCard(id, kind);
+      await nativeShareBlob(prep.blob, `${prep.m.fileName || 'Invitation'}.png`, prep.m.text);
+      try { await admin('inv.markSent', { id, kind }); } catch {}
+      toast('Card shared');
+      return true;
+    } catch (e) {
+      if (!/cancel/i.test(e?.message || '')) toast(e.message || 'Could not share the card.', true);
+      return false;
+    }
+  }
   const canFiles = typeof navigator !== 'undefined' && !!navigator.canShare && coarse();
   if (!canFiles) return sendWhatsApp(id, kind, { withImage: true });
   let prep;

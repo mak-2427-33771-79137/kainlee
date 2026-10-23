@@ -4,6 +4,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import Icon from '@/components/Icon';
 import Portal from '@/components/Portal';
+import { isNative, registerNativePush } from '@/components/native';
 import { api, admin } from '@/components/client';
 
 export default function Shell({ user, events, unread: unread0, perms, regiment, credit, children }) {
@@ -19,6 +20,10 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
   const handlerMe = sp.get('handler') === 'me';
 
   useEffect(() => { setMore(false); }, [path]);
+  // iOS app: register this phone for push notifications (asks permission the first time)
+  useEffect(() => {
+    if (isNative()) registerNativePush((token) => admin('push.native', { token, device: navigator.userAgent.slice(0, 150) })).catch(() => {});
+  }, []);
   useEffect(() => {
     const t = setInterval(async () => {
       if (document.hidden) return;

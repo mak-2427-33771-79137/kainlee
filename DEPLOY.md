@@ -120,3 +120,9 @@ several seconds while it starts again. A cron job that visits the site every 5 m
 1. hPanel → **Advanced → Cron Jobs** → **Custom**.
 2. Command: `curl -s https://momopasal.in/api/health > /dev/null`
 3. Schedule: every 5 minutes (`*/5 * * * *`) → **Save**.
+
+## iOS app (organisers)
+
+The iPhone/iPad app lives in the `mobile/` folder. Building it, push-notification keys (`APNS_KEY_ID`,
+`APNS_TEAM_ID`, `APNS_KEY`) and the App Store steps are in **mobile/README.md**.
+Privacy policy for the App Store listing: `https://momopasal.in/privacy`.

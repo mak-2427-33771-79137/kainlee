@@ -17,7 +17,7 @@ const HINTS = {
 export async function GET() {
   const vars = ['DB_HOST', 'DB_PORT', 'DB_NAME', 'DB_USER', 'DB_PASSWORD', 'SESSION_SECRET', 'DATABASE_URL', 'SITE_URL'];
   const env = Object.fromEntries(vars.map((v) => [v, process.env[v] ? (v === 'DB_HOST' || v === 'DB_PORT' || v === 'SITE_URL' ? process.env[v] : 'set') : 'missing']));
-  const out = { app: 'kainlee', node: process.version, env, database: 'unknown' };
+  const out = { app: 'kainlee', node: process.version, env, iosPush: ['APNS_KEY_ID', 'APNS_TEAM_ID', 'APNS_KEY'].every((v) => process.env[v]) ? 'configured' : 'not set', database: 'unknown' };
   try {
     const k = await db();
     const r = await k.raw('select version() as v');

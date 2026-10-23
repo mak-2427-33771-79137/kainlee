@@ -13,7 +13,7 @@ import { buildMessage } from '@/lib/messages';
 import { cardHtmlFor } from '@/lib/guest';
 import { assignSlug, guestPath, EVENT_CODE_RE } from '@/lib/links';
 import { sanitizeCard } from '@/lib/cards';
-import { saveSubscription, vapidPublicKey, notifyUsers, notifyGuestChange } from '@/lib/notify';
+import { saveSubscription, vapidPublicKey, notifyUsers, notifyGuestChange, saveNativeToken } from '@/lib/notify';
 import { regimentName } from '@/lib/settings';
 
 export const dynamic = 'force-dynamic';
@@ -58,6 +58,12 @@ A['account.notify'] = async (u, b, req) => {
   return { ok: true };
 };
 A['push.key'] = async () => ({ key: await vapidPublicKey() });
+// iOS app: register this phone's push token
+A['push.native'] = async (u, b) => {
+  if (!/^[0-9a-fA-F]{32,200}$/.test(String(b.token || ''))) bad('Invalid device token');
+  await saveNativeToken(u, b.token, b.device);
+  return { ok: true };
+};
 A['push.subscribe'] = async (u, b, req) => {
   await saveSubscription(u, b.subscription, req.headers.get('user-agent'));
   return { ok: true };

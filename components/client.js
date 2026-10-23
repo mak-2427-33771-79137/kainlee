@@ -48,6 +48,10 @@ export function confetti() {
 }
 
 export function download(url) {
+  if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
+    import('./native').then((n) => n.nativeSaveUrl(url)).catch((e) => toast(e.message || 'Could not download the file.', true));
+    return;
+  }
   const a = document.createElement('a');
   a.href = url;
   a.rel = 'noopener';

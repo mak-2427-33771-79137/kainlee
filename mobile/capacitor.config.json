@@ -1,0 +1,20 @@
+{
+  "appId": "com.makjal.kainlee",
+  "appName": "Kainlee",
+  "webDir": "www",
+  "server": {
+    "url": "https://momopasal.in/admin",
+    "errorPath": "offline.html",
+    "allowNavigation": ["momopasal.in", "*.momopasal.in", "lali-guras.in", "*.lali-guras.in"]
+  },
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#00572D",
+    "preferredContentMode": "mobile"
+  },
+  "plugins": {
+    "SplashScreen": { "launchShowDuration": 900, "launchAutoHide": true, "backgroundColor": "#00572D", "showSpinner": false },
+    "PushNotifications": { "presentationOptions": ["badge", "sound", "alert"] },
+    "StatusBar": { "overlaysWebView": true, "style": "DARK" }
+  }
+}
