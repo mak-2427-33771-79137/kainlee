@@ -3,9 +3,11 @@
   "appName": "Kainlee",
   "webDir": "www",
   "server": {
-    "url": "https://momopasal.in/admin",
+    "url": "https://forefirst.org/admin",
     "errorPath": "offline.html",
     "allowNavigation": [
+      "forefirst.org",
+      "*.forefirst.org",
       "momopasal.in",
       "*.momopasal.in",
       "lali-guras.in",

@@ -1,6 +1,6 @@
 # Kainlee — iOS app (organisers)
 
-The app is a native iPhone/iPad shell that opens **https://momopasal.in/admin** and adds native features:
+The app is a native iPhone/iPad shell that opens **https://forefirst.org/admin** and adds native features:
 
 | Feature | How it works in the app |
 |---|---|
@@ -42,7 +42,7 @@ hPanel › your Node.js app › **Environment variables** → add:
 | `APNS_TEAM_ID` | your Team ID (10 characters) |
 | `APNS_KEY` | open the `.p8` file in TextEdit and paste **all** of it, including the BEGIN/END lines |
 
-**Redeploy**, then open `https://momopasal.in/api/health` → it should show `"iosPush":"configured"`.
+**Redeploy**, then open `https://forefirst.org/api/health` → it should show `"iosPush":"configured"`.
 
 ## 4. Signing in Xcode
 
@@ -66,7 +66,7 @@ Connect the iPhone by cable (or same Wi-Fi), pick it at the top of Xcode, press 
 ## 7. Fill in the App Store listing
 
 - **Category:** Productivity (secondary: Business).
-- **Privacy Policy URL:** `https://momopasal.in/privacy`
+- **Privacy Policy URL:** `https://forefirst.org/privacy`
 - **Support URL:** `https://makjal.com`
 - **Subtitle:** Regimental event invitations
 - **Description (example):** *Kainlee is the organisers' app for regimental get-togethers: track invitations and RSVPs, manage family headcounts, meal preferences and guest rooms, see who looks after which guest, send personalised invitation cards on WhatsApp, and admit guests at the gate by scanning their entry QR. For authorised event organisers only.*

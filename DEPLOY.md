@@ -1,4 +1,4 @@
-# Going live on momopasal.in — step by step
+# Going live — step by step (site: forefirst.org, formerly momopasal.in)
 
 (Moving to lali-guras.in later? See Part 9 — no code change needed.)
 
@@ -94,11 +94,13 @@ Gate tablets: log in as a Check-in Volunteer → **Check-in** → **Scan entry Q
 - **Something broke? Roll back:** GitHub → **Actions** → **Roll back live site** → **Run workflow** → paste the version from the **Tags** page (the one before the problem) → Run. Hostinger redeploys that version. Press **Redeploy** in hPanel if needed.
 - **Your data is safe during rollbacks.** Database changes are only ever *added*, so older versions keep working on the newer database. Before any big change, download a backup (**Settings & activity → Download backup**); Hostinger also keeps its own backups.
 
-## Part 9 — Moving to lali-guras.in later
+## Part 9 — Moving to forefirst.org
 
-1. When the transfer finishes, in hPanel connect **lali-guras.in** to this same Node.js website (change the website’s domain or add it as an additional/alias domain), and install SSL for it.
-2. Add the environment variable `SITE_URL=https://lali-guras.in` and **Redeploy**. New WhatsApp messages will use the new address.
-3. **Keep momopasal.in working** (as an alias or a redirect to lali-guras.in) so links already sent to guests still open. Guests’ links and PINs do not change.
+1. hPanel → **Websites** → the Node.js app (now momopasal.in) → **Connect domain** / change domain → choose **forefirst.org** (registered in this account). SSL is installed automatically; check both forefirst.org and www.forefirst.org open with a padlock.
+2. Node.js app → **Environment variables**: set `SITE_URL=https://forefirst.org` → **Redeploy**. WhatsApp messages, push notifications and links now use forefirst.org. (The app also forwards www.forefirst.org to forefirst.org.)
+3. Keep old links working: momopasal.in is now free. hPanel → **Add website** → **momopasal.in** (empty PHP/HTML site) → **File manager** → in `public_html` upload the two files from `deploy/momopasal-forward/` (`.htaccess` and `index.html`). Every old link, e.g. `momopasal.in/i/rgt/9233002887`, then opens the same page on forefirst.org. Install SSL for momopasal.in too.
+4. Tell the team to update the Kainlee app from TestFlight (the new build opens forefirst.org).
+5. Privacy policy URL for the App Store becomes `https://forefirst.org/privacy`.
 
 ## If something goes wrong
 
