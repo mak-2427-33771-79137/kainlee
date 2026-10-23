@@ -20,7 +20,7 @@ export default async function SettingsPage({ params }) {
     <EventSetup
       ev={{
         id: ev.id, name: ev.name, series_id: ev.series_id || '', status: ev.status, venue: ev.venue || '', map_url: ev.map_url || '',
-        rsvp_deadline: dateToIstInput(ev.rsvp_deadline), default_extra_cap: ev.default_extra_cap,
+        starts_at: dateToIstInput(ev.starts_at), rsvp_deadline: dateToIstInput(ev.rsvp_deadline), default_extra_cap: ev.default_extra_cap,
         card_host: ev.card_host || '', card_unit: ev.card_unit || '', card_note: ev.card_note || '', guestroom_enabled: !!ev.guestroom_enabled, diet_notes_enabled: !!ev.diet_notes_enabled, code: ev.code || '',
         card_mode: ev.card_mode, card_html: ev.card_html || '',
       }}

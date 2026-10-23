@@ -47,6 +47,7 @@ export default function EventSetup({ ev, functions, series, templates, placehold
             <label className="field"><span>Status</span><select className="inp" id="e-status" value={f.status} onChange={set('status')}><option value="active">Active</option><option value="draft">Draft</option><option value="closed">Closed (RSVP locked)</option></select></label>
             <label className="field"><span>Main venue</span><input className="inp" id="e-venue" value={f.venue} onChange={set('venue')} /></label>
             <label className="field"><span>Google Maps link</span><input className="inp" id="e-map" value={f.map_url} onChange={set('map_url')} placeholder="https://…" /></label>
+            <DateTimeField id="e-start" label="Event date & time (IST)" value={f.starts_at} onChange={(v) => setF({ ...f, starts_at: v })} />
             <DateTimeField id="e-deadline" label="RSVP closes (IST)" value={f.rsvp_deadline} onChange={(v) => setF({ ...f, rsvp_deadline: v })} />
             <label className="field"><span>Extra guests allowed</span><input className="inp" id="e-cap" type="number" min="0" max="10" value={f.default_extra_cap} onChange={set('default_extra_cap')} /></label>
           </div>

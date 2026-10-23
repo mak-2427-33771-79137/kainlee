@@ -110,6 +110,7 @@ A['event.save'] = async (u, b, req) => {
   };
   if (b.guestroom_enabled != null) row.guestroom_enabled = !!b.guestroom_enabled;
   if (b.diet_notes_enabled != null) row.diet_notes_enabled = !!b.diet_notes_enabled;
+  if (b.starts_at !== undefined) row.starts_at = istInputToDate(b.starts_at);
   if (row.map_url && !/^https?:\/\//i.test(row.map_url)) bad('Directions link must start with https://');
   let id = int(b.id);
   if (b.code != null && String(b.code).trim() !== '') {

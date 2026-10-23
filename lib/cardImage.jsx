@@ -41,6 +41,10 @@ function cardLines(event, fns, invitee, regiment) {
     lines.push({ t: `to ${safe(f.name)}` });
     lines.push({ t: `at ${fmtHrs(f.starts_at)} on ${fmtDate(f.starts_at)}` });
     lines.push({ t: `at ${safe(f.venue || event.venue || '')}.` });
+  } else if (!fns.length) {
+    lines.push({ t: `to ${safe(event.name)}` });
+    if (event.starts_at) lines.push({ t: `at ${fmtHrs(event.starts_at)} on ${fmtDate(event.starts_at)}` });
+    if (event.venue) lines.push({ t: `at ${safe(event.venue)}.` });
   } else {
     lines.push({ t: `to ${safe(event.name)}` });
     for (const f of fns) lines.push({ t: `${safe(f.name)} at ${fmtHrs(f.starts_at)} on ${fmtDate(f.starts_at)}`, scale: 0.82 });

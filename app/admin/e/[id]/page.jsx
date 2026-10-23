@@ -43,7 +43,7 @@ export default async function Dashboard({ params, searchParams }) {
           <div className="lbl">{ev.status === 'active' ? 'Event' : `Event · ${ev.status}`}</div>
           <h1>{ev.name}</h1>
           <div className="mu" style={{ fontSize: 14 }}>
-            {ev.functions.map((f) => `${f.name} · ${fmtDate(f.starts_at)}, ${fmtHrs(f.starts_at)}`).join('  |  ') || 'No functions yet'}
+            {ev.functions.map((f) => `${f.name} · ${fmtDate(f.starts_at)}, ${fmtHrs(f.starts_at)}`).join('  |  ') || (ev.starts_at ? `${fmtDate(ev.starts_at)}, ${fmtHrs(ev.starts_at)}` : 'No date set yet')}
             {ev.rsvp_deadline ? `  |  RSVP closes ${fmtDateHrs(ev.rsvp_deadline)}` : ''}
           </div>
         </div>

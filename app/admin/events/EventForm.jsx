@@ -6,7 +6,7 @@ import DateTimeField from '@/components/DateTimeField';
 
 export default function EventForm({ series }) {
   const router = useRouter();
-  const [f, setF] = useState({ name: '', series_id: '', venue: '', map_url: '', rsvp_deadline: '', default_extra_cap: 2, card_host: 'The Commanding Officer and all Officers', card_unit: '', card_note: 'Ladies & Children are cordially invited', guestroom_enabled: true, diet_notes_enabled: false });
+  const [f, setF] = useState({ name: '', series_id: '', venue: '', map_url: '', starts_at: '', rsvp_deadline: '', default_extra_cap: 2, card_host: 'The Commanding Officer and all Officers', card_unit: '', card_note: 'Ladies & Children are cordially invited', guestroom_enabled: true, diet_notes_enabled: false });
   const [sname, setSname] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -35,6 +35,7 @@ export default function EventForm({ series }) {
         <div className="grid2">
           <label className="field"><span>Main venue</span><input className="inp" id="ev-venue" value={f.venue} onChange={set('venue')} placeholder="Officers' Mess" /></label>
           <label className="field"><span>Google Maps link</span><input className="inp" id="ev-map" value={f.map_url} onChange={set('map_url')} placeholder="https://maps.app.goo.gl/…" /></label>
+          <DateTimeField id="ev-start" label="Event date & time (IST)" value={f.starts_at} onChange={(v) => setF({ ...f, starts_at: v })} />
           <DateTimeField id="ev-deadline" label="RSVP closes (IST)" value={f.rsvp_deadline} onChange={(v) => setF({ ...f, rsvp_deadline: v })} />
           <label className="field"><span>Extra guests allowed (default)</span><input className="inp" id="ev-cap" type="number" min="0" max="10" value={f.default_extra_cap} onChange={set('default_extra_cap')} /></label>
         </div>

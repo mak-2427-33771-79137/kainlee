@@ -114,7 +114,8 @@ function Invitation({ token, path, data, setData, t, lang, setLang }) {
     setMembers([...members, { name: '', relation: 'spouse', age_group: 'adult', meal: 'veg', meal_note: '', attending: [...fnIds] }]);
     setDirty(true); setReply('attending');
   };
-  const daysTo = fns.length ? Math.ceil((new Date(fns[0].starts_at) - Date.now()) / 86400000) : null;
+  const firstAt = fns[0]?.starts_at || event.starts_at;
+  const daysTo = firstAt ? Math.ceil((new Date(firstAt) - Date.now()) / 86400000) : null;
   const checkedIn = Object.keys(data.present || {}).length > 0;
   const nights = useMemo(() => { const ms = new Date(gr.etd) - new Date(gr.eta); return ms > 0 ? Math.max(1, Math.round(ms / 86400000)) : null; }, [gr]);
 
@@ -204,7 +205,18 @@ function Invitation({ token, path, data, setData, t, lang, setLang }) {
                 <label className="field"><span>{t.age}</span><select className="inp" id={`g-age-${i}`} value={m.age_group} disabled={closed || m.is_walkin} onChange={(e) => upd(i, { age_group: e.target.value })}>{AGE_GROUPS.map((a) => <option key={a} value={a}>{ageLabel(a)}</option>)}</select></label>
                 <label className="field"><span>{t.meal}</span><select className="inp" id={`g-meal-${i}`} value={m.meal} disabled={closed || m.is_walkin} onChange={(e) => upd(i, { meal: e.target.value })}><option value="veg">{t.veg}</option><option value="nonveg">{t.nonveg}</option></select></label>
               </div>
-              {!m.is_walkin && event.dietNotes && <input className="inp" id={`g-note-${i}`} value={m.meal_note} disabled={closed} onChange={(e) => upd(i, { meal_note: e.target.value })} placeholder={t.mealNote} aria-label={t.mealNote} style={{ fontSize: 14 }} />}
+              {!m.is_walkin && event.dietNotes && (() => {
+                // switch: on shows the note box; off hides it and clears the note
+                const on = m.dietOn ?? !!m.meal_note;
+                return (<>
+                  <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', gap: 10, background: 'var(--well)', borderRadius: 10, padding: '8px 10px' }}>
+                    <span style={{ fontSize: 14.5 }}>{t.addDietNote}</span>
+                    <button type="button" className="tog" id={`g-diet-${i}`} aria-pressed={on} aria-label={`${t.addDietNote}: ${m.name}`} disabled={closed}
+                      onClick={() => upd(i, on ? { dietOn: false, meal_note: '' } : { dietOn: true })}><i /></button>
+                  </div>
+                  {on && <input className="inp" id={`g-note-${i}`} value={m.meal_note || ''} disabled={closed} onChange={(e) => upd(i, { meal_note: e.target.value })} placeholder={t.mealNote} aria-label={t.mealNote} style={{ fontSize: 14 }} autoFocus={m.dietOn === true && !m.meal_note} />}
+                </>);
+              })()}
               <div className="row" style={{ gap: 10 }}>
                 {fns.map((f) => (
                   <label key={f.id} className="row" style={{ gap: 6, background: 'var(--well)', borderRadius: 8, padding: '4px 8px', fontSize: 13.5, fontWeight: 700 }}>
@@ -257,6 +269,12 @@ function Invitation({ token, path, data, setData, t, lang, setLang }) {
 
       <section className="card3 band stack" style={{ padding: '20px 14px 14px', gap: 6 }}>
         <h2 className="go" style={{ fontSize: 24 }}>{t.prog}</h2>
+        {!fns.length && event.starts_at && (
+          <div className="row" style={{ justifyContent: 'space-between', borderBottom: '1px dashed var(--rule2)', paddingBottom: 6 }}>
+            <span><b>{event.name}</b></span>
+            <span className="mu num">{dt(event.starts_at, lang)} · {hrs(event.starts_at)}</span>
+          </div>
+        )}
         {fns.map((f) => (
           <div key={f.id} className="row" style={{ justifyContent: 'space-between', borderBottom: '1px dashed var(--rule2)', paddingBottom: 6 }}>
             <span><b>{f.name}</b>{f.dress ? <span className="mu"> · {t.dress}: {f.dress}</span> : null}</span>
