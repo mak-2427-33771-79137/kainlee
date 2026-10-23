@@ -27,11 +27,11 @@ export default function Rooms({ event, rooms, waiting, s, manage, exportOk }) {
 
   const tiles = [
     ['Rooms in list', s.total_rooms, ''],
-    ['Allotted', s.rooms_allotted, 'var(--green)'],
-    ['Vacant', s.vacant, s.vacant ? 'var(--green)' : 'var(--muted)'],
+    ['Allotted', s.rooms_allotted, 'var(--accent)'],
+    ['Vacant', s.vacant, s.vacant ? 'var(--accent)' : 'var(--muted)'],
     ['Required', s.rooms_needed, ''],
-    ['More required', s.still_needed, s.still_needed ? 'var(--red)' : 'var(--green)'],
-    ['Short of rooms', Math.max(0, s.rooms_needed - s.total_rooms), s.rooms_needed > s.total_rooms ? 'var(--red)' : 'var(--green)'],
+    ['More required', s.still_needed, s.still_needed ? 'var(--red)' : 'var(--accent)'],
+    ['Short of rooms', Math.max(0, s.rooms_needed - s.total_rooms), s.rooms_needed > s.total_rooms ? 'var(--red)' : 'var(--accent)'],
   ];
 
   return (

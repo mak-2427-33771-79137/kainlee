@@ -56,7 +56,7 @@ export default function SendQueue({ event, all }) {
             <div><div className="lbl">Next · {cur.remaining} left · {sent} sent now</div><div className="go" style={{ fontSize: 28 }}>{cur.name}</div><div className="mu num">+{cur.mobile}</div></div>
           </div>
           {kind === 'invite' && cur.cardPng && <img src={cur.cardPng} alt={`Invitation card for ${cur.name}`} style={{ width: '100%', maxWidth: 520, height: 'auto', borderRadius: 4, boxShadow: '0 10px 20px -10px rgba(0,0,0,.5)' }} />}
-          <pre style={{ whiteSpace: 'pre-wrap', background: '#faf6ec', borderRadius: 10, padding: 12, margin: 0, fontFamily: 'var(--body)', fontSize: 14, maxHeight: 260, overflow: 'auto' }}>{cur.text}</pre>
+          <pre style={{ whiteSpace: 'pre-wrap', background: 'var(--well)', borderRadius: 10, padding: 12, margin: 0, fontFamily: 'var(--body)', fontSize: 14, maxHeight: 260, overflow: 'auto' }}>{cur.text}</pre>
           <div className="row">
             {kind === 'invite' && <button type="button" className="btn pri" style={{ minHeight: 56, fontSize: 17, flex: '1 1 220px' }} onClick={async () => { if (await shareCard(cur.id)) { setSent(sent + 1); setTimeout(() => next(), 400); } }}><Icon n="wa" size={22} />Send card + message</button>}
             <a className={`btn${kind === 'invite' ? '' : ' pri'}`} style={kind === 'invite' ? { flex: '1 1 160px' } : { minHeight: 56, fontSize: 17, flex: '1 1 220px' }} href={cur.wa} target="_blank" rel="noopener noreferrer" onClick={opened}><Icon n="send" size={20} />{kind === 'invite' ? 'Open chat (message only)' : 'Open WhatsApp'}</a>

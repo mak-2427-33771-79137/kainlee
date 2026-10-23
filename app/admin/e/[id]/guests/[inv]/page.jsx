@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { loadEventData, roomsNeeded } from '@/lib/stats';
 import { can, canOn, ROLES } from '@/lib/rbac';
 import { categoryLabel, prettyMobile, fmtDate, fmtHrs, fmtShort, dateToIstInput, siteUrl } from '@/lib/util';
+import { guestPath } from '@/lib/links';
 import NoAccess from '@/components/NoAccess';
 import GuestEditor from './GuestEditor';
 
@@ -34,7 +35,7 @@ export default async function GuestDetail({ params }) {
     sent: inv.invite_sent_at ? fmtShort(inv.invite_sent_at) : null, reminded: inv.reminder_sent_at ? fmtShort(inv.reminder_sent_at) : null,
     seen: inv.guest_last_seen_at ? fmtShort(inv.guest_last_seen_at) : null,
     pin: canOn(user, 'pin.reset', inv) ? inv.pin : null,
-    link: canOn(user, 'invites.send', inv) ? `${siteUrl(null) || ''}/i/${inv.token}` : null,
+    link: canOn(user, 'invites.send', inv) ? `${siteUrl(null) || ''}${guestPath(ev.code, inv)}` : null,
     eligible: !!inv.guestroom_eligible, required: !!inv.guestroom_required, need: roomsNeeded(inv),
     rooms_required: inv.rooms_required || 1,
     eta: dateToIstInput(inv.guestroom_eta), etd: dateToIstInput(inv.guestroom_etd),

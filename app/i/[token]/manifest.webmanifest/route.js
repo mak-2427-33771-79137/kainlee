@@ -1,19 +1,21 @@
 import { regimentName, logoVersion } from '@/lib/settings';
+import { linkFor } from '@/lib/guestLink';
 
 export const dynamic = 'force-dynamic';
 
 // Per-guest manifest so "Add to Home Screen" opens straight to this guest's invitation.
 export async function GET(req, { params }) {
   const { token } = await params;
-  if (!/^[A-Za-z0-9]{10,40}$/.test(token)) return new Response('Not found', { status: 404 });
+  const r = await linkFor(token);
+  if (!r) return new Response('Not found', { status: 404 });
   const v = await logoVersion();
   const name = await regimentName();
   return Response.json({
     name: `${name} Invitation`,
     short_name: name,
-    id: `/i/${token}`,
-    start_url: `/i/${token}`,
-    scope: `/i/${token}`,
+    id: r.path,
+    start_url: r.path,
+    scope: '/i/',
     display: 'standalone',
     background_color: '#00572D',
     theme_color: '#00572D',

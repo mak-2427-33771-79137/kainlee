@@ -20,15 +20,17 @@ function Lang({ lang, setLang }) {
   );
 }
 
-export default function GuestApp({ token, initial, preview }) {
+export default function GuestApp({ token, path, next, initial, preview }) {
   const [data, setData] = useState(initial);
   const [lang, setLangS] = useState(initial?.invitee?.lang || preview.lang || 'en');
   useEffect(() => { try { const s = localStorage.getItem('kl_lang'); if (s) setLangS(s); } catch {} }, []);
   const setLang = (l) => { setLangS(l); try { localStorage.setItem('kl_lang', l); } catch {} };
   const t = dict(lang);
   useEffect(() => { document.documentElement.lang = lang; }, [lang]);
+  // After the PIN, continue to the card / PDF if that is what the guest opened
+  useEffect(() => { if (data && next) location.replace(next); }, [data, next]);
   if (!data) return <Pin token={token} t={t} lang={lang} setLang={setLang} preview={preview} onOpen={setData} />;
-  return <Invitation token={token} data={data} setData={setData} t={t} lang={lang} setLang={setLang} />;
+  return <Invitation token={token} path={path || `/i/${token}`} data={data} setData={setData} t={t} lang={lang} setLang={setLang} />;
 }
 
 function Pin({ token, t, lang, setLang, preview, onOpen }) {
@@ -47,10 +49,9 @@ function Pin({ token, t, lang, setLang, preview, onOpen }) {
       <div className="row" style={{ justifyContent: 'flex-end' }}><Lang lang={lang} setLang={setLang} /></div>
       <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
         <img className="coin" src="/api/logo/512" alt="" width={120} height={120} />
-        <div className="go" style={{ fontSize: 'clamp(36px,10vw,52px)', textShadow: '0 1px 0 #fff,0 4px 0 #d9d0bc' }}>{preview.regiment}</div>
-        <div className="mu">{t.welcome}</div>
-        <div className="go" style={{ fontSize: 26, color: 'var(--green)' }}>{preview.name}</div>
-        <div className="mu" style={{ fontSize: 14 }}>{preview.event}</div>
+        <div className="go" style={{ fontSize: 'clamp(36px,10vw,52px)', textShadow: '0 4px 18px rgba(0,0,0,.4)' }}>{preview.regiment}</div>
+        <div className="mu">{t.invitedTo}</div>
+        <div className="go" style={{ fontSize: 26, color: 'var(--accent)' }}>{preview.event}</div>
       </div>
       <March squads={2} men={3} height={36} duration={13} width="640px" />
       <form onSubmit={submit} className="card3 band stack" style={{ padding: '22px 18px 18px' }}>
@@ -66,7 +67,7 @@ function Pin({ token, t, lang, setLang, preview, onOpen }) {
   );
 }
 
-function Invitation({ token, data, setData, t, lang, setLang }) {
+function Invitation({ token, path, data, setData, t, lang, setLang }) {
   const { event, invitee, invitation: inv } = data;
   const fns = event.functions;
   const fnIds = fns.map((f) => f.id);
@@ -131,7 +132,7 @@ function Invitation({ token, data, setData, t, lang, setLang }) {
           <button type="button" className={`flip${flip ? ' on' : ''}`} onClick={() => { setFlip(!flip); if (!flip) api(`/api/g/${token}`, { action: 'qr' }).catch(() => {}); }} aria-label={flip ? t.tapBack : t.tapFront}>
             <div className="face" style={{ position: 'relative' }}><CardView html={data.cardHtml} /><div className="gloss" /></div>
             <div className="face back">
-              <div className="go" style={{ fontSize: 22, color: 'var(--green)' }}>{t.yourQr}</div>
+              <div className="go" style={{ fontSize: 22, color: 'var(--accent)' }}>{t.yourQr}</div>
               <div dangerouslySetInnerHTML={{ __html: data.qrSvg }} style={{ width: 'min(46%,190px)' }} />
               <div className="go" style={{ fontSize: 18 }}>{invitee.name}</div>
               <div className="mu" style={{ fontSize: 13 }}>{t.showQr}</div>
@@ -149,7 +150,7 @@ function Invitation({ token, data, setData, t, lang, setLang }) {
         <h2 className="go" style={{ fontSize: 24 }}>{t.rsvp}</h2>
         <div className="grid2" style={{ gridTemplateColumns: '1fr 1fr' }}>
           <button type="button" className={`btn${reply === 'attending' ? ' grn' : ''}`} disabled={closed} onClick={() => { setReply('attending'); setDirty(true); if (members.every((m) => !m.attending.length)) setMembers(members.map((m) => ({ ...m, attending: [...fnIds] }))); }}>✓ {t.attending}</button>
-          <button type="button" className={`btn${reply === 'declined' ? ' pri' : ''}`} style={reply === 'declined' ? {} : { borderColor: 'var(--red)', color: '#a10d0d', boxShadow: '0 4px 0 var(--red)' }} disabled={closed || busy} onClick={() => { setReply('declined'); save(true); }}>{t.declined}</button>
+          <button type="button" className={`btn${reply === 'declined' ? ' pri' : ''}`} style={reply === 'declined' ? {} : { borderColor: 'rgba(255,110,90,.55)', color: 'var(--red-text)', boxShadow: 'none' }} disabled={closed || busy} onClick={() => { setReply('declined'); save(true); }}>{t.declined}</button>
         </div>
         {reply === 'declined' && !dirty && <div className="okmsg">{t.regretMsg}</div>}
       </section>
@@ -179,7 +180,7 @@ function Invitation({ token, data, setData, t, lang, setLang }) {
               {!m.is_walkin && <input className="inp" id={`g-note-${i}`} value={m.meal_note} disabled={closed} onChange={(e) => upd(i, { meal_note: e.target.value })} placeholder={t.mealNote} aria-label={t.mealNote} style={{ fontSize: 14 }} />}
               <div className="row" style={{ gap: 10 }}>
                 {fns.map((f) => (
-                  <label key={f.id} className="row" style={{ gap: 6, background: '#faf6ec', borderRadius: 8, padding: '4px 8px', fontSize: 13.5, fontWeight: 700 }}>
+                  <label key={f.id} className="row" style={{ gap: 6, background: 'var(--well)', borderRadius: 8, padding: '4px 8px', fontSize: 13.5, fontWeight: 700 }}>
                     <button type="button" className="key" aria-pressed={m.attending.includes(f.id)} disabled={closed || m.is_walkin} onClick={() => toggleFn(i, f.id)} aria-label={`${m.name || t.name} – ${f.name}`}><Icon n="check" size={18} sw={3} /></button>{f.name}
                   </label>
                 ))}
@@ -210,7 +211,7 @@ function Invitation({ token, data, setData, t, lang, setLang }) {
               <DateTimeField id="g-eta" label={t.eta} value={gr.eta} disabled={closed} dateLabel={t.dateL} timeLabel={t.timeL} hint={t.tapChoose} onChange={(v) => { setGr({ ...gr, eta: v }); setDirty(true); }} />
               <DateTimeField id="g-etd" label={t.etd} value={gr.etd} disabled={closed} dateLabel={t.dateL} timeLabel={t.timeL} hint={t.tapChoose} onChange={(v) => { setGr({ ...gr, etd: v }); setDirty(true); }} />
               {gr.eta && gr.etd && <div className={nights ? 'okmsg' : 'err'} style={{ fontSize: 14 }}>{nights ? `${dt(gr.eta + ':00+05:30', lang)}, ${hrs(gr.eta + ':00+05:30')} → ${dt(gr.etd + ':00+05:30', lang)}, ${hrs(gr.etd + ':00+05:30')} · ${nights} ${t.nights}` : t.grBad}</div>}
-              <div style={{ border: '2px dashed #d9a400', background: '#fff8e0', borderRadius: 8, padding: '9px 11px', fontSize: 14 }}>
+              <div style={{ border: '1.5px dashed var(--amber-line)', background: 'var(--well-amber)', borderRadius: 8, padding: '9px 11px', fontSize: 14 }}>
                 <b>{t.allotH}</b><br />
                 {inv.rooms_allotted.length ? <>{t.allotted}: {inv.rooms_allotted.map((r) => `${r.name}${r.location ? `, ${r.location}` : ''}`).join(' · ')}</> : t.allotPending}
                 {inv.note && <div style={{ marginTop: 4 }}>{inv.note}</div>}
@@ -247,7 +248,7 @@ function Invitation({ token, data, setData, t, lang, setLang }) {
       {event.rsvp_deadline && !closed && <div className="mu" style={{ textAlign: 'center', fontSize: 13 }}>{t.deadline}: {dt(event.rsvp_deadline, lang)}, {hrs(event.rsvp_deadline)}</div>}
 
       <div className="row" style={{ justifyContent: 'center' }}>
-        <a className="btn" href={event.card_mode === 'builtin' ? `/i/${token}/invitation.pdf` : `/i/${token}/card`} target="_blank" rel="noopener"><Icon n="dl" />{t.downloadPdf}</a>
+        <a className="btn" href={event.card_mode === 'builtin' ? `${path}/invitation.pdf` : `${path}/card`} target="_blank" rel="noopener"><Icon n="dl" />{t.downloadPdf}</a>
         {installEvt && <button type="button" className="btn" onClick={async () => { installEvt.prompt(); await installEvt.userChoice; setInstallEvt(null); }}><Icon n="plus" />{t.install}</button>}
       </div>
       {!installEvt && <p className="mu" style={{ textAlign: 'center', fontSize: 12.5, margin: 0 }}>{t.installHint}</p>}

@@ -48,7 +48,7 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
             </div>
           )}
           {r.pin && (
-            <div className="row" style={{ background: '#faf6ec', borderRadius: 8, padding: '8px 10px' }}>
+            <div className="row" style={{ background: 'var(--well)', borderRadius: 8, padding: '8px 10px' }}>
               <span>PIN: <b className="num" style={{ letterSpacing: '.15em' }}>{showPin ? r.pin : '••••'}</b></span>
               <button type="button" className="btn sm ghost" onClick={() => setShowPin(!showPin)}>{showPin ? 'Hide' : 'Show'}</button>
               {r.canPin && <button type="button" className="btn sm" onClick={() => setPin(true)}><Icon n="key" size={15} />Reset PIN</button>}
@@ -128,11 +128,11 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
               </div>
               <div className="row" style={{ gap: 12 }}>
                 {event.functions.map((f) => (
-                  <div key={f.id} className="row" style={{ gap: 6, background: '#faf6ec', borderRadius: 8, padding: '4px 8px' }}>
+                  <div key={f.id} className="row" style={{ gap: 6, background: 'var(--well)', borderRadius: 8, padding: '4px 8px' }}>
                     <span style={{ fontSize: 13, fontWeight: 700 }}>{f.name}</span>
                     <button type="button" className="key" aria-pressed={m.attending.includes(f.id)} aria-label={`${m.name || 'Person'} attending ${f.name}`} disabled={!r.canEdit} onClick={() => toggleFn(i, f.id)}><Icon n="check" size={18} sw={3} /></button>
                     {m.id && r.canMark && (<>
-                      <button type="button" className="key" style={{ width: 34, color: m.attendance[f.id] === 'present' ? '#fff' : 'var(--green)', fontWeight: 800 }} aria-pressed={m.attendance[f.id] === 'present'} aria-label="Present" onClick={() => mark(m.id, f.id, m.attendance[f.id] === 'present' ? null : 'present')}>P</button>
+                      <button type="button" className="key" style={{ width: 34, color: m.attendance[f.id] === 'present' ? '#fff' : 'var(--accent)', fontWeight: 800 }} aria-pressed={m.attendance[f.id] === 'present'} aria-label="Present" onClick={() => mark(m.id, f.id, m.attendance[f.id] === 'present' ? null : 'present')}>P</button>
                       <button type="button" className="key abs" style={{ width: 34, color: m.attendance[f.id] === 'absent' ? '#fff' : 'var(--red-text)', borderColor: 'var(--red)', fontWeight: 800 }} aria-pressed={m.attendance[f.id] === 'absent'} aria-label="Absent" onClick={() => mark(m.id, f.id, m.attendance[f.id] === 'absent' ? null : 'absent')}>A</button>
                     </>)}
                   </div>

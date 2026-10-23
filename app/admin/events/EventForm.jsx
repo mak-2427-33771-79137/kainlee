@@ -38,7 +38,7 @@ export default function EventForm({ series }) {
           <DateTimeField id="ev-deadline" label="RSVP closes (IST)" value={f.rsvp_deadline} onChange={(v) => setF({ ...f, rsvp_deadline: v })} />
           <label className="field"><span>Extra guests allowed (default)</span><input className="inp" id="ev-cap" type="number" min="0" max="10" value={f.default_extra_cap} onChange={set('default_extra_cap')} /></label>
         </div>
-        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: '#faf6ec', borderRadius: 10, padding: '10px 12px' }}>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: 'var(--well)', borderRadius: 10, padding: '10px 12px' }}>
           <div><b>Guest rooms</b><div className="mu" style={{ fontSize: 13 }}>{f.guestroom_enabled ? 'On: officers can request guest rooms with ETA / ETD.' : 'Off: guests are not asked about guest rooms.'}</div></div>
           <button type="button" className="tog" id="ev-gr" aria-pressed={!!f.guestroom_enabled} aria-label="Guest rooms for this event" onClick={() => setF({ ...f, guestroom_enabled: !f.guestroom_enabled })}><i /></button>
         </div>

@@ -38,6 +38,10 @@ export default function EventSetup({ ev, functions, series, templates, placehold
         <form className="card3 band stack" style={{ padding: '20px 16px 16px' }} onSubmit={(e) => { e.preventDefault(); run(() => admin('event.save', f), 'Event saved'); }}>
           <h2 className="go" style={{ fontSize: 24 }}>Details</h2>
           <label className="field"><span>Name</span><input className="inp" id="e-name" value={f.name} onChange={set('name')} required /></label>
+          <label className="field"><span>Link code (short, used in guest links)</span>
+            <input className="inp" id="e-code" value={f.code} onChange={(e) => setF({ ...f, code: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '') })} maxLength={24} placeholder="rgt26" />
+            <span className="mu" style={{ fontSize: 12.5, textTransform: 'none', letterSpacing: 0, fontWeight: 400 }}>Guest links look like …/i/<b>{f.code || 'code'}</b>/9233002887. Changing it changes every guest link for this event, so set it before sending invites.</span>
+          </label>
           <div className="grid2">
             <label className="field"><span>Series</span><select className="inp" id="e-series" value={f.series_id} onChange={set('series_id')}><option value="">None</option>{series.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}</select></label>
             <label className="field"><span>Status</span><select className="inp" id="e-status" value={f.status} onChange={set('status')}><option value="active">Active</option><option value="draft">Draft</option><option value="closed">Closed (RSVP locked)</option></select></label>
@@ -46,7 +50,7 @@ export default function EventSetup({ ev, functions, series, templates, placehold
             <DateTimeField id="e-deadline" label="RSVP closes (IST)" value={f.rsvp_deadline} onChange={(v) => setF({ ...f, rsvp_deadline: v })} />
             <label className="field"><span>Extra guests allowed</span><input className="inp" id="e-cap" type="number" min="0" max="10" value={f.default_extra_cap} onChange={set('default_extra_cap')} /></label>
           </div>
-          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: '#faf6ec', borderRadius: 10, padding: '10px 12px' }}>
+          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: 'var(--well)', borderRadius: 10, padding: '10px 12px' }}>
             <div><b>Guest rooms</b><div className="mu" style={{ fontSize: 13 }}>{f.guestroom_enabled ? 'On: officers can request guest rooms with ETA / ETD.' : 'Off: guests are not asked about guest rooms.'}</div></div>
             <button type="button" className="tog" id="e-gr" aria-pressed={!!f.guestroom_enabled} aria-label="Guest rooms for this event" onClick={() => setF({ ...f, guestroom_enabled: !f.guestroom_enabled })}><i /></button>
           </div>
@@ -70,7 +74,7 @@ export default function EventSetup({ ev, functions, series, templates, placehold
           ))}
           {!functions.length && <p className="mu" style={{ margin: 0 }}>Add each part of the event, e.g. Barakhana on 14 Nov at 1230 hrs, Ladies’ Dinner Night on 15 Nov at 2000 hrs.</p>}
           {fn ? (
-            <form className="stack" style={{ background: '#faf6ec', borderRadius: 10, padding: 12 }} onSubmit={(e) => { e.preventDefault(); run(async () => { await admin('function.save', { event_id: ev.id, ...fn }); setFn(null); }, 'Function saved'); }}>
+            <form className="stack" style={{ background: 'var(--well)', borderRadius: 10, padding: 12 }} onSubmit={(e) => { e.preventDefault(); run(async () => { await admin('function.save', { event_id: ev.id, ...fn }); setFn(null); }, 'Function saved'); }}>
               <div className="grid2">
                 <label className="field"><span>Name</span><input className="inp" id="f-name" value={fn.name} onChange={(e) => setFn({ ...fn, name: e.target.value })} required placeholder="Barakhana" /></label>
                 <DateTimeField id="f-at" label="Date & time (IST)" value={fn.starts_at} onChange={(v) => setFn({ ...fn, starts_at: v })} />
@@ -128,7 +132,7 @@ export default function EventSetup({ ev, functions, series, templates, placehold
         <section className="card3 stack" style={{ padding: '18px 16px', borderColor: 'var(--red)' }}>
           <h2 className="go" style={{ fontSize: 22, color: 'var(--red-text)' }}>Delete event</h2>
           <p className="mu" style={{ margin: 0 }}>Deletes the event, its functions, RSVPs, rooms and attendance. Invitees stay in the directory. Download a backup first (Settings).</p>
-          <button type="button" className="btn" style={{ borderColor: 'var(--red)', color: 'var(--red-text)', boxShadow: '0 4px 0 var(--red)', alignSelf: 'flex-start' }} onClick={() => {
+          <button type="button" className="btn" style={{ borderColor: 'rgba(255,110,90,.55)', color: 'var(--red-text)', boxShadow: 'none', alignSelf: 'flex-start' }} onClick={() => {
             const c = window.prompt(`Type the event name to confirm:\n${ev.name}`);
             if (c) run(async () => { await admin('event.delete', { id: ev.id, confirm: c }); location.href = '/admin/events'; }, 'Event deleted');
           }}>Delete this event</button>

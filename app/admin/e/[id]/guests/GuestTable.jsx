@@ -157,7 +157,7 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
           {visible.map((r) => (
             <div key={r.id} className="card3" style={{ padding: '12px 12px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div className="row" style={{ alignItems: 'flex-start', flexWrap: 'nowrap' }}>
-                {r.canTransfer && picking && <input type="checkbox" aria-label={`Select ${r.name}`} checked={sel.has(r.id)} onChange={() => toggle(r.id)} style={{ marginTop: 3, width: 24, height: 24, flex: 'none', accentColor: 'var(--green)' }} />}
+                {r.canTransfer && picking && <input type="checkbox" aria-label={`Select ${r.name}`} checked={sel.has(r.id)} onChange={() => toggle(r.id)} style={{ marginTop: 3, width: 24, height: 24, flex: 'none', accentColor: 'var(--accent)' }} />}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <Link href={`/admin/e/${event.id}/guests/${r.id}`} style={{ color: 'inherit', fontWeight: 700, fontSize: 16, textDecoration: 'none' }}>{r.name}</Link>
                   <div className="sub mu" style={{ fontSize: 13 }}>{r.cat}{r.family ? ` · ${r.family}` : ''} · {r.handler || 'Unassigned'}</div>
@@ -165,7 +165,7 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
                 <span className={`chip ${RSVP[r.rsvp][0]}`}>{RSVP[r.rsvp][1]}{r.rsvp === 'attending' ? ` · ${r.heads}` : ''}</span>
               </div>
               {gr && r.need > 0 && (
-                <div style={{ background: '#fff7f7', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ background: 'var(--well-red)', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <div className="row" style={{ gap: 6 }}><span className="chip gr">{r.need} room{r.need > 1 ? 's' : ''}</span>
                     <span className="num" style={{ fontSize: 13 }}>ETA {r.eta?.join(' ')} → ETD {r.etd?.join(' ')}</span></div>
                   <Allot r={r} vacant={vacant} canAllot={perms.allot} onDone={() => router.refresh()} />
@@ -285,10 +285,10 @@ export function PinReset({ r, onClose }) {
   return (
     <Modal title={`Reset PIN · ${r.name}`} onClose={onClose}>
       {!res ? (<>
-        <p style={{ margin: 0 }}>A new 4-digit PIN replaces the old one immediately. Choose <b>new link too</b> if the old link may have been forwarded to someone else.</p>
+        <p style={{ margin: 0 }}>A new 4-digit PIN replaces the old one immediately. Choose <b>log out other phones</b> if the invitation may have been opened by someone else.</p>
         <div className="row">
           <button type="button" className="btn pri" disabled={busy} onClick={() => go(false)}><Icon n="key" />New PIN</button>
-          <button type="button" className="btn" disabled={busy} onClick={() => go(true)}>New PIN + new link</button>
+          <button type="button" className="btn" disabled={busy} onClick={() => go(true)}>New PIN + log out other phones</button>
         </div>
       </>) : (<>
         <div className="okmsg">New PIN: <span className="num" style={{ fontSize: 26, letterSpacing: '.2em' }}>{res.pin}</span></div>

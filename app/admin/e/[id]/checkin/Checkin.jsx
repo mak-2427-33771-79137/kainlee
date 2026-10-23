@@ -93,7 +93,7 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
                 <div key={m.id} className="mem">
                   <div><b style={{ fontSize: 17 }}>{m.name}</b><div className="mu" style={{ fontSize: 13.5 }}>{RELATION_LABEL[m.relation]} · {AGE_LABEL[m.age_group]} · {m.meal === 'veg' ? 'Veg' : 'Non-veg'}{m.is_walkin ? ' · walk-in' : ''}{!m.fn[fn]?.attending && !m.is_walkin ? ' · not on RSVP' : ''}</div></div>
                   <div className="row" style={{ gap: 8, flexWrap: 'nowrap' }}>
-                    <button type="button" className="key" style={{ width: 'auto', padding: '0 12px', color: st === 'present' ? '#fff' : 'var(--green)', fontWeight: 800, height: 44 }} aria-pressed={st === 'present'} onClick={() => mark(m, 'present')}>Present</button>
+                    <button type="button" className="key" style={{ width: 'auto', padding: '0 12px', color: st === 'present' ? '#fff' : 'var(--accent)', fontWeight: 800, height: 44 }} aria-pressed={st === 'present'} onClick={() => mark(m, 'present')}>Present</button>
                     <button type="button" className="key abs" style={{ width: 'auto', padding: '0 12px', color: st === 'absent' ? '#fff' : 'var(--red-text)', borderColor: 'var(--red)', fontWeight: 800, height: 44 }} aria-pressed={st === 'absent'} onClick={() => mark(m, 'absent')}>Absent</button>
                   </div>
                 </div>
@@ -106,7 +106,7 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
             </div>
             {admitted && <div style={{ position: 'absolute', left: 22, bottom: 14, pointerEvents: 'none' }}><span className="stamp">ADMITTED<span style={{ display: 'block', fontFamily: 'var(--body)', fontSize: 12, letterSpacing: '.12em' }}>{fnObj?.name?.toUpperCase()}</span></span></div>}
             {walk && (
-              <form className="stack" style={{ background: '#fff7f7', borderRadius: 10, padding: 12 }} onSubmit={async (e) => {
+              <form className="stack" style={{ background: 'var(--well-red)', borderRadius: 10, padding: 12 }} onSubmit={async (e) => {
                 e.preventDefault();
                 try { await admin('checkin.walkin', { event_id: event.id, function_id: fn, invitation_id: party.id, ...walk }); toast('Walk-in added and marked present'); setWalk(null); open(party.id); loadStats(); } catch (er) { toast(er.message, true); }
               }}>

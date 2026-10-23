@@ -11,6 +11,7 @@ import {
 import { setSetting } from '@/lib/settings';
 import { buildMessage } from '@/lib/messages';
 import { cardHtmlFor } from '@/lib/guest';
+import { assignSlug, guestPath, EVENT_CODE_RE } from '@/lib/links';
 import { sanitizeCard } from '@/lib/cards';
 import { saveSubscription, vapidPublicKey, notifyUsers, notifyGuestChange } from '@/lib/notify';
 import { regimentName } from '@/lib/settings';
@@ -103,8 +104,18 @@ A['event.save'] = async (u, b, req) => {
   if (b.guestroom_enabled != null) row.guestroom_enabled = !!b.guestroom_enabled;
   if (row.map_url && !/^https?:\/\//i.test(row.map_url)) bad('Directions link must start with https://');
   let id = int(b.id);
+  if (b.code != null && String(b.code).trim() !== '') {
+    const code = String(b.code).trim().toLowerCase();
+    if (!EVENT_CODE_RE.test(code)) bad('Link code: use 1–24 lower-case letters, numbers or hyphens (e.g. rgt26).');
+    const clash = await k('events').whereRaw('LOWER(code) = ?', [code]).whereNot({ id: id || 0 }).first();
+    if (clash) bad(`Link code "${code}" is already used by "${clash.name}".`);
+    row.code = code;
+  }
   if (id) await k('events').where({ id }).update(row);
-  else [id] = await k('events').insert({ ...row, card_unit: row.card_unit || (await regimentName()), created_at: new Date() });
+  else {
+    [id] = await k('events').insert({ ...row, card_unit: row.card_unit || (await regimentName()), created_at: new Date() });
+    if (!row.code) await k('events').where({ id }).update({ code: (await k('events').where({ code: String(id) }).first()) ? `e${id}` : String(id) });
+  }
   await audit({ user: u, eventId: id, action: b.id ? 'event.update' : 'event.create', details: name, req });
   return { id };
 };
@@ -206,7 +217,12 @@ A['invitee.save'] = async (u, b, req) => {
   const row = inviteeRow(b);
   let id = int(b.id);
   if (id) {
+    const before = await k('invitees').where({ id }).first();
     await k('invitees').where({ id }).update(row);
+    // mobile changed: their readable links follow the new number
+    if (before && before.mobile !== row.mobile) {
+      for (const x of await k('invitations').where({ invitee_id: id }).select('id', 'event_id')) await assignSlug(k, x.id, x.event_id, row.mobile);
+    }
     // keep the "self" member's name in sync
     const invs = await k('invitations').where({ invitee_id: id }).select('id');
     if (invs.length) await k('members').whereIn('invitation_id', invs.map((x) => x.id)).andWhere({ relation: 'self' }).update({ name: displayName(row) });
@@ -278,7 +294,8 @@ A['inv.resetPin'] = async (u, b, req) => {
   await k('invitations').where({ id: inv.id }).update(upd);
   await audit({ user: u, eventId: inv.event_id, invitationId: inv.id, action: b.newLink ? 'inv.resetPinAndLink' : 'inv.resetPin', details: await invName(inv.id), req });
   const msg = await buildMessage(req, inv.id, 'invite');
-  return { pin: upd.pin, link: `${siteUrl(req)}/i/${upd.token || inv.token}`, wa: msg.wa };
+  const ev = await k('events').where({ id: inv.event_id }).select('code').first();
+  return { pin: upd.pin, link: `${siteUrl(req)}${guestPath(ev?.code, { ...inv, ...upd })}`, wa: msg.wa };
 };
 
 A['inv.message'] = async (u, b, req) => {

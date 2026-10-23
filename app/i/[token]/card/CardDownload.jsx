@@ -4,7 +4,7 @@ import Icon from '@/components/Icon';
 import CardView from '@/components/CardView';
 import { toast } from '@/components/client';
 
-export default function CardDownload({ html, name, token }) {
+export default function CardDownload({ html, name, path }) {
   const [busy, setBusy] = useState(false);
   async function pdf() {
     setBusy(true);
@@ -28,7 +28,7 @@ export default function CardDownload({ html, name, token }) {
       <div className="scene"><div className="tiltc"><div className="face" style={{ position: 'relative', boxShadow: '0 26px 34px -10px rgba(0,0,0,.45)' }}><CardView html={html} /><div className="gloss" /></div></div></div>
       <div className="row" style={{ justifyContent: 'center' }}>
         <button type="button" className="btn pri" disabled={busy} onClick={pdf}><Icon n="dl" />{busy ? 'Preparing…' : 'Download PDF'}</button>
-        <a className="btn" href={`/i/${token}`}>Open my invitation &amp; RSVP</a>
+        <a className="btn" href={path}>Open my invitation &amp; RSVP</a>
       </div>
     </>
   );
