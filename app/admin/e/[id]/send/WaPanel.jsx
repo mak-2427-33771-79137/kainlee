@@ -4,7 +4,7 @@ import Link from 'next/link';
 import Icon from '@/components/Icon';
 import { admin, toast } from '@/components/client';
 
-const KIND = { invite: 'Invitation', reminder: 'Reminder', confirm: 'Confirmation', eventday: 'Event-day pass' };
+const KIND = { invite: 'Invitation', reminder: 'Reminder', confirm: 'Confirmation', eventday: 'Event-day reminder' };
 const STATUS = {
   queued: ['pen', 'Waiting'], sending: ['pen', 'Sending'], sent: ['att', 'Sent'], failed: ['dec', 'Failed'], skipped: ['gray', 'Skipped'],
 };
@@ -58,7 +58,7 @@ export default function WaPanel({ eventId, canManage, canSettings }) {
           <span>Automatic for this event:</span>
           <span className={`chip ${d.switches.wa_reminders ? 'att' : 'gray'}`}>Reminders {d.switches.wa_reminders ? 'on' : 'off'}</span>
           <span className={`chip ${d.switches.wa_confirm ? 'att' : 'gray'}`}>Confirmation {d.switches.wa_confirm ? 'on' : 'off'}</span>
-          <span className={`chip ${d.switches.wa_eventday ? 'att' : 'gray'}`}>Event-day pass {d.switches.wa_eventday ? 'on' : 'off'}</span>
+          <span className={`chip ${d.switches.wa_eventday ? 'att' : 'gray'}`}>Event-day reminder {d.switches.wa_eventday ? 'on' : 'off'}</span>
           <Link href={`/admin/e/${eventId}/settings`} style={{ fontSize: 13 }}>Change</Link>
         </div>
       </>)}
