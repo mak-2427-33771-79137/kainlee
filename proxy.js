@@ -1,10 +1,9 @@
-// Send visitors on an old or "www" address to https://forefirst.org, keeping the rest of the
-// link (so /i/<event>/<mobile> from old WhatsApp messages still opens the same invitation).
+// Send visitors on www.forefirst.org to https://forefirst.org, keeping the rest of the link.
 // Only page visits (GET/HEAD) are forwarded; anything else is left alone so nothing half-done breaks.
 import { NextResponse } from 'next/server';
 
 const CANONICAL = (process.env.CANONICAL_HOST || 'forefirst.org').toLowerCase();
-const FORWARD = new Set(['www.forefirst.org', 'momopasal.in', 'www.momopasal.in', 'lali-guras.in', 'www.lali-guras.in']);
+const FORWARD = new Set(['www.forefirst.org']);
 
 export function proxy(req) {
   const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').split(':')[0].toLowerCase();

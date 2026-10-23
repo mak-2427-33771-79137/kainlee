@@ -98,7 +98,7 @@ Gate tablets: log in as a Check-in Volunteer → **Check-in** → **Scan entry Q
 
 1. hPanel → **Websites** → the Node.js app (now momopasal.in) → **Connect domain** / change domain → choose **forefirst.org** (registered in this account). SSL is installed automatically; check both forefirst.org and www.forefirst.org open with a padlock.
 2. Node.js app → **Environment variables**: set `SITE_URL=https://forefirst.org` → **Redeploy**. WhatsApp messages, push notifications and links now use forefirst.org. (The app also forwards www.forefirst.org to forefirst.org.)
-3. Keep old links working: momopasal.in is now free. hPanel → **Add website** → **momopasal.in** (empty PHP/HTML site) → **File manager** → in `public_html` upload the two files from `deploy/momopasal-forward/` (`.htaccess` and `index.html`). Every old link, e.g. `momopasal.in/i/rgt/9233002887`, then opens the same page on forefirst.org. Install SSL for momopasal.in too.
+3. Old momopasal.in links are no longer used (send fresh invitations from forefirst.org if needed).
 4. Tell the team to update the Kainlee app from TestFlight (the new build opens forefirst.org).
 5. Privacy policy URL for the App Store becomes `https://forefirst.org/privacy`.
 

@@ -1,4 +1,0 @@
-# momopasal.in → forefirst.org (permanent), keeping the full path and query,
-# so invitation links already sent on WhatsApp keep opening the same page.
-RewriteEngine On
-RewriteRule ^(.*)$ https://forefirst.org/$1 [R=301,L,QSA]

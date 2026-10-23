@@ -7,11 +7,7 @@
     "errorPath": "offline.html",
     "allowNavigation": [
       "forefirst.org",
-      "*.forefirst.org",
-      "momopasal.in",
-      "*.momopasal.in",
-      "lali-guras.in",
-      "*.lali-guras.in"
+      "*.forefirst.org"
     ]
   },
   "ios": {
