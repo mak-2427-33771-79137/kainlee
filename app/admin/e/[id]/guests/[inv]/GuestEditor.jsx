@@ -123,8 +123,8 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
                   <select className="inp" id={`m-meal-${i}`} value={m.meal} disabled={!r.canEdit} onChange={(e) => upd(i, { meal: e.target.value })}>
                     <option value="veg">Veg</option><option value="nonveg">Non-veg</option>
                   </select></label>
-                <label className="field"><span>Dietary note</span>
-                  <input className="inp" id={`m-note-${i}`} value={m.meal_note} disabled={!r.canEdit} onChange={(e) => upd(i, { meal_note: e.target.value })} /></label>
+                {event.dietNotes && <label className="field"><span>Dietary note</span>
+                  <input className="inp" id={`m-note-${i}`} value={m.meal_note} disabled={!r.canEdit} onChange={(e) => upd(i, { meal_note: e.target.value })} /></label>}
               </div>
               <div className="row" style={{ gap: 12 }}>
                 {event.functions.map((f) => (

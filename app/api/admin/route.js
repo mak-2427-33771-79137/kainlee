@@ -109,6 +109,7 @@ A['event.save'] = async (u, b, req) => {
     card_host: str(b.card_host), card_unit: str(b.card_unit), card_note: str(b.card_note),
   };
   if (b.guestroom_enabled != null) row.guestroom_enabled = !!b.guestroom_enabled;
+  if (b.diet_notes_enabled != null) row.diet_notes_enabled = !!b.diet_notes_enabled;
   if (row.map_url && !/^https?:\/\//i.test(row.map_url)) bad('Directions link must start with https://');
   let id = int(b.id);
   if (b.code != null && String(b.code).trim() !== '') {

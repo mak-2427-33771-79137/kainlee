@@ -16,6 +16,7 @@
     "contentInset": "never",
     "backgroundColor": "#00572D",
     "preferredContentMode": "mobile",
+    "appendUserAgent": "KainleeApp",
     "limitsNavigationsToAppBoundDomains": true
   },
   "plugins": {

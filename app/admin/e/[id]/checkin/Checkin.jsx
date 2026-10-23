@@ -3,7 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Icon from '@/components/Icon';
 import March from '@/components/March';
 import { admin, toast } from '@/components/client';
-import { isNative, nativeScan, haptic } from '@/components/native';
+import { isNative, nativeScan, haptic, scannerStatus } from '@/components/native';
+import { BUILD } from '@/lib/version';
 import { checkinCall, refreshSnapshot, syncNow, subscribe } from '@/components/offline';
 import { RELATION_LABEL, AGE_LABEL, RELATIONS, AGE_GROUPS } from '@/lib/consts';
 
@@ -14,6 +15,8 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
   const [results, setResults] = useState([]);
   const [party, setParty] = useState(null);
   const [scan, setScan] = useState(false);
+  const [diag, setDiag] = useState(null);
+  useEffect(() => { scannerStatus().then(setDiag).catch(() => {}); }, []);
   const [admitted, setAdmitted] = useState(false);
   const [walk, setWalk] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -99,6 +102,13 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
             setScan(!scan);
           }}><Icon n="scan" size={26} />{scan ? 'Close camera' : 'Scan entry QR'}</button>
           {scan && <Scanner onCode={onCode} />}
+          {diag && (diag.bridge || diag.inApp) && (
+            <div className="mu" style={{ fontSize: 12.5 }}>
+              {!diag.bridge ? 'App link: not connected (scanner uses the page camera)'
+                : diag.scanner ? `App scanner: ready${diag.camera === 'denied' ? ' · camera access is off in iPhone Settings › Kainlee' : ''}`
+                : 'App scanner: not in this app version. Update Kainlee from TestFlight.'} · Version {BUILD}
+            </div>
+          )}
           <label className="field"><span>Or search name, rank, city, mobile</span>
             <input className="inp" id="ci-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. Gurung" style={{ fontSize: 17 }} autoComplete="off" />
           </label>

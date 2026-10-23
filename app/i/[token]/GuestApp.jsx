@@ -202,7 +202,7 @@ function Invitation({ token, path, data, setData, t, lang, setLang }) {
                 <label className="field"><span>{t.age}</span><select className="inp" id={`g-age-${i}`} value={m.age_group} disabled={closed || m.is_walkin} onChange={(e) => upd(i, { age_group: e.target.value })}>{AGE_GROUPS.map((a) => <option key={a} value={a}>{ageLabel(a)}</option>)}</select></label>
                 <label className="field"><span>{t.meal}</span><select className="inp" id={`g-meal-${i}`} value={m.meal} disabled={closed || m.is_walkin} onChange={(e) => upd(i, { meal: e.target.value })}><option value="veg">{t.veg}</option><option value="nonveg">{t.nonveg}</option></select></label>
               </div>
-              {!m.is_walkin && <input className="inp" id={`g-note-${i}`} value={m.meal_note} disabled={closed} onChange={(e) => upd(i, { meal_note: e.target.value })} placeholder={t.mealNote} aria-label={t.mealNote} style={{ fontSize: 14 }} />}
+              {!m.is_walkin && event.dietNotes && <input className="inp" id={`g-note-${i}`} value={m.meal_note} disabled={closed} onChange={(e) => upd(i, { meal_note: e.target.value })} placeholder={t.mealNote} aria-label={t.mealNote} style={{ fontSize: 14 }} />}
               <div className="row" style={{ gap: 10 }}>
                 {fns.map((f) => (
                   <label key={f.id} className="row" style={{ gap: 6, background: 'var(--well)', borderRadius: 8, padding: '4px 8px', fontSize: 13.5, fontWeight: 700 }}>

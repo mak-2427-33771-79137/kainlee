@@ -81,3 +81,16 @@ export async function registerNativePush(sendToken) {
 export async function nativePushState() {
   try { const pn = await P('PushNotifications'); return (await pn.checkPermissions()).receive; } catch { return 'unsupported'; }
 }
+
+/** What the Check-in screen shows about the app's scanner (helps when something is off). */
+export async function scannerStatus() {
+  const inApp = typeof navigator !== 'undefined' && /KainleeApp/i.test(navigator.userAgent || '');
+  if (!isNative()) return { bridge: false, inApp, scanner: false };
+  try {
+    const s = await P('KainleeScanner');
+    const r = await s.status();
+    return { bridge: true, inApp: true, scanner: true, camera: r.camera };
+  } catch (e) {
+    return { bridge: true, inApp: true, scanner: false, error: String(e?.message || e) };
+  }
+}

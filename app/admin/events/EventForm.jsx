@@ -6,7 +6,7 @@ import DateTimeField from '@/components/DateTimeField';
 
 export default function EventForm({ series }) {
   const router = useRouter();
-  const [f, setF] = useState({ name: '', series_id: '', venue: '', map_url: '', rsvp_deadline: '', default_extra_cap: 2, card_host: 'The Commanding Officer and all Officers', card_unit: '', card_note: 'Ladies & Children are cordially invited', guestroom_enabled: true });
+  const [f, setF] = useState({ name: '', series_id: '', venue: '', map_url: '', rsvp_deadline: '', default_extra_cap: 2, card_host: 'The Commanding Officer and all Officers', card_unit: '', card_note: 'Ladies & Children are cordially invited', guestroom_enabled: true, diet_notes_enabled: false });
   const [sname, setSname] = useState('');
   const [busy, setBusy] = useState(false);
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
@@ -41,6 +41,10 @@ export default function EventForm({ series }) {
         <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: 'var(--well)', borderRadius: 10, padding: '10px 12px' }}>
           <div><b>Guest rooms</b><div className="mu" style={{ fontSize: 13 }}>{f.guestroom_enabled ? 'On: officers can request guest rooms with ETA / ETD.' : 'Off: guests are not asked about guest rooms.'}</div></div>
           <button type="button" className="tog" id="ev-gr" aria-pressed={!!f.guestroom_enabled} aria-label="Guest rooms for this event" onClick={() => setF({ ...f, guestroom_enabled: !f.guestroom_enabled })}><i /></button>
+        </div>
+        <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: 'var(--well)', borderRadius: 10, padding: '10px 12px' }}>
+          <div><b>Dietary notes</b><div className="mu" style={{ fontSize: 13 }}>{f.diet_notes_enabled ? 'On: each guest can add a dietary note (e.g. Jain, no egg).' : 'Off: the dietary note box is hidden for everyone.'}</div></div>
+          <button type="button" className="tog" id="ev-diet" aria-pressed={!!f.diet_notes_enabled} aria-label="Dietary notes for this event" onClick={() => setF({ ...f, diet_notes_enabled: !f.diet_notes_enabled })}><i /></button>
         </div>
         <button className="btn pri" disabled={busy}>Create event</button>
       </form>

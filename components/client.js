@@ -47,17 +47,42 @@ export function confetti() {
   setTimeout(() => box.remove(), 4200);
 }
 
-export function download(url) {
-  if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
-    import('./native').then((n) => n.nativeSaveUrl(url)).catch((e) => toast(e.message || 'Could not download the file.', true));
-    return;
+function fileNameFrom(res, url) {
+  const cd = res.headers.get('content-disposition') || '';
+  const m = cd.match(/filename\*=UTF-8''([^;]+)/i) || cd.match(/filename="?([^";]+)"?/i);
+  return decodeURIComponent((m && m[1]) || url.split('/').pop().split('?')[0] || 'Kainlee-file');
+}
+
+/**
+ * Download a file (report, backup, template). Fetches it first so a server error shows as a
+ * message instead of a blank page. In the iPhone app the file goes to the share sheet
+ * (Save to Files, WhatsApp, Mail); in a browser it is saved like any download.
+ */
+export async function downloadFile(url) {
+  let res;
+  try { res = await fetch(url, { credentials: 'include', cache: 'no-store' }); }
+  catch { throw new Error('No connection. Connect to the internet and try again.'); }
+  if (!res.ok) {
+    let msg = '';
+    try { msg = (await res.json()).error; } catch {}
+    throw new Error(msg || (res.status === 401 ? 'Please log in again.' : `Could not prepare the file (${res.status}).`));
   }
+  const name = fileNameFrom(res, url);
+  const blob = await res.blob();
+  if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform?.()) {
+    const n = await import('./native');
+    try { await n.nativeShareBlob(blob, name); return; }
+    catch (e) { if (/cancel/i.test(String(e?.message || e))) return; throw new Error(`Could not open the share sheet: ${e?.message || e}`); }
+  }
+  const href = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = url;
-  a.rel = 'noopener';
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
+  a.href = href; a.download = name; a.rel = 'noopener';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(href), 60000);
+}
+
+export function download(url) {
+  downloadFile(url).catch((e) => toast(e.message || 'Could not download the file.', true));
 }
 
 export function qs(obj) {

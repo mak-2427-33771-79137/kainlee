@@ -54,6 +54,10 @@ export default function EventSetup({ ev, functions, series, templates, placehold
             <div><b>Guest rooms</b><div className="mu" style={{ fontSize: 13 }}>{f.guestroom_enabled ? 'On: officers can request guest rooms with ETA / ETD.' : 'Off: guests are not asked about guest rooms.'}</div></div>
             <button type="button" className="tog" id="e-gr" aria-pressed={!!f.guestroom_enabled} aria-label="Guest rooms for this event" onClick={() => setF({ ...f, guestroom_enabled: !f.guestroom_enabled })}><i /></button>
           </div>
+          <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: 'var(--well)', borderRadius: 10, padding: '10px 12px' }}>
+            <div><b>Dietary notes</b><div className="mu" style={{ fontSize: 13 }}>{f.diet_notes_enabled ? 'On: each guest can add a dietary note (e.g. Jain, no egg).' : 'Off: the dietary note box is hidden for everyone.'}</div></div>
+            <button type="button" className="tog" id="e-diet" aria-pressed={!!f.diet_notes_enabled} aria-label="Dietary notes for this event" onClick={() => setF({ ...f, diet_notes_enabled: !f.diet_notes_enabled })}><i /></button>
+          </div>
           <div className="lbl">Invitation card wording</div>
           <label className="field"><span>Host line</span><input className="inp" id="e-host" value={f.card_host} onChange={set('card_host')} placeholder="The Commanding Officer and all Officers" /></label>
           <label className="field"><span>Unit line</span><input className="inp" id="e-unit" value={f.card_unit} onChange={set('card_unit')} placeholder="Kainlee" /></label>

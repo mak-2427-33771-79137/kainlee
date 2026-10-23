@@ -95,7 +95,9 @@ input.inp::-webkit-calendar-picker-indicator{opacity:.6}
 .dtf-row{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:8px}
 .dtf-cell{position:relative;display:flex;flex-direction:column;gap:2px;min-width:0}
 .dtf-cell>span{font-size:11.5px;color:var(--muted)}
-.dtf-cell>i{position:absolute;left:12px;bottom:12px;font-style:normal;color:#9a917e;pointer-events:none;font-size:15px}
+.dtf-cell>i{position:absolute;left:12px;bottom:12px;font-style:normal;color:#9a917e;pointer-events:none;font-size:15px;display:none}
+/* only iPhone/iPad leave an empty date box blank; other browsers draw dd/mm/yyyy themselves */
+@supports (-webkit-touch-callout:none){.dtf-cell>i{display:block}}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:12px}
 .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
 .stack{display:flex;flex-direction:column;gap:12px}

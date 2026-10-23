@@ -1,4 +1,5 @@
 'use client';
+import { BUILD } from '@/lib/version';
 import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -99,7 +100,7 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
           <div><div className="go" style={{ fontSize: 26 }}>{regiment}</div><div className="mu" style={{ fontSize: 12.5 }}>{user.name} · {user.roleLabel}</div></div>
         </div>
         <NavList />
-        <p className="credit" style={{ marginTop: 'auto', paddingTop: 16 }}>{credit}</p>
+        <p className="credit" style={{ marginTop: 'auto', paddingTop: 16 }}>{credit}<br /><span style={{ opacity: 0.6, fontSize: 11 }}>Version {BUILD}</span></p>
       </aside>
       <main className="main">{children}</main>
       <Portal>
