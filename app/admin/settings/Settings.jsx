@@ -1,5 +1,6 @@
 'use client';
 import ClearData from './ClearData';
+import Xpressbot from './Xpressbot';
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Icon from '@/components/Icon';
@@ -76,6 +77,7 @@ export default function Settings({ s, log, users, events, filters, canClear }) {
           <tbody>{log.map((l) => <tr key={l.id}><td className="num" style={{ whiteSpace: 'nowrap' }}>{l.at}</td><td>{l.actor}</td><td><code>{l.action}</code></td><td style={{ fontSize: 13.5 }}>{l.details}</td><td className="sub">{l.event}</td></tr>)}</tbody>
         </table></div>
       </section>
+      <Xpressbot />
       {canClear && <ClearData />}
     </>
   );

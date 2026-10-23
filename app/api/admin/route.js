@@ -9,7 +9,9 @@ import {
   CATEGORY_IDS, cleanName, isLatinName, normalizeMobile, istInputToDate, newPin, newToken, newCheckinCode,
   RELATIONS, AGE_GROUPS, siteUrl, fmtShort,
 } from '@/lib/util';
-import { setSetting } from '@/lib/settings';
+import { setSetting, getSetting } from '@/lib/settings';
+import { xbConfig, xbChannels, xbTemplates, xbSendTemplate, XB_DEFAULT_BASE } from '@/lib/xpressbot';
+import { KINDS, TEMPLATE_TEXT, queueBulk, rememberSite, templateFor, schedule, signedCardUrl } from '@/lib/wa';
 import { buildMessage } from '@/lib/messages';
 import { cardHtmlFor } from '@/lib/guest';
 import { assignSlug, guestPath, EVENT_CODE_RE } from '@/lib/links';
@@ -111,6 +113,7 @@ A['event.save'] = async (u, b, req) => {
   if (b.guestroom_enabled != null) row.guestroom_enabled = !!b.guestroom_enabled;
   if (b.diet_notes_enabled != null) row.diet_notes_enabled = !!b.diet_notes_enabled;
   if (b.starts_at !== undefined) row.starts_at = istInputToDate(b.starts_at);
+  for (const key of ['wa_reminders', 'wa_confirm', 'wa_eventday']) if (b[key] != null) row[key] = !!b[key];
   if (row.map_url && !/^https?:\/\//i.test(row.map_url)) bad('Directions link must start with https://');
   let id = int(b.id);
   if (b.code != null && String(b.code).trim() !== '') {
@@ -812,6 +815,144 @@ A['logo.save'] = async (u, b, req) => {
   await setSetting('logo_version', String(Date.now()));
   await audit({ user: u, action: 'logo.save', details: b.reset ? 'reset to default' : 'new crest uploaded', req });
   return { ok: true };
+};
+
+// ---------- WhatsApp automation (Xpressbot) ----------
+// Xpressbot problems (wrong key, template not approved…) are shown to the user as they are.
+async function xbCall(fn) {
+  try { return await fn(); } catch (e) { if (e?.name === 'Error' && 'retry' in e) bad(e.message, 400); throw e; }
+}
+async function xbState() {
+  const cfg = await xbConfig();
+  let templates = [];
+  try { templates = JSON.parse((await getSetting('xb_templates')) || '[]'); } catch {}
+  const chosen = {};
+  for (const kind of Object.keys(KINDS)) chosen[kind] = await templateFor(kind);
+  return {
+    hasKey: !!cfg.key, keyEnd: cfg.key ? cfg.key.slice(-4) : '', enabled: cfg.enabled, base: cfg.base, defaultBase: XB_DEFAULT_BASE,
+    channel: cfg.channel, channelLabel: (await getSetting('xb_channel_label')) || '', templates, chosen,
+    inviteImage: (await getSetting('xb_invite_image')) !== '0', texts: TEMPLATE_TEXT, kinds: Object.fromEntries(Object.entries(KINDS).map(([k, v]) => [k, v.label])),
+  };
+}
+
+A['xb.state'] = async (u) => {
+  if (!can(u.role, 'settings.manage')) bad('Not allowed', 403);
+  return xbState();
+};
+
+A['xb.save'] = async (u, b, req) => {
+  if (!can(u.role, 'settings.manage')) bad('Only the Super Admin can change WhatsApp automation.', 403);
+  if (typeof b.key === 'string' && b.key.trim()) await setSetting('xb_key', b.key.trim());
+  if (b.removeKey) { await setSetting('xb_key', ''); await setSetting('xb_enabled', '0'); }
+  if (typeof b.base === 'string') {
+    const base = b.base.trim().replace(/\/$/, '');
+    if (base && !/^https:\/\/[^\s/]+\/\S*$/i.test(base) && !(process.env.KL_TEST === '1' && /^http:\/\/(localhost|127\.0\.0\.1)[:/]/.test(base))) bad('API address must start with https://');
+    await setSetting('xb_base', base);
+  }
+  if (typeof b.channel === 'string') { await setSetting('xb_channel', b.channel.trim()); if (b.channelLabel != null) await setSetting('xb_channel_label', String(b.channelLabel).slice(0, 120)); }
+  if (b.templates && typeof b.templates === 'object') {
+    for (const kind of Object.keys(KINDS)) if (typeof b.templates[kind] === 'string') await setSetting(KINDS[kind].setting, b.templates[kind].trim().slice(0, 120));
+  }
+  if (b.inviteImage != null) await setSetting('xb_invite_image', b.inviteImage ? '1' : '0');
+  if (b.enabled != null) {
+    if (b.enabled && !(await getSetting('xb_key'))) bad('Add the API key first.');
+    await setSetting('xb_enabled', b.enabled ? '1' : '0');
+  }
+  await rememberSite(siteUrl(req));
+  await audit({ user: u, action: 'xb.save', details: `WhatsApp automation ${b.enabled == null ? 'settings' : b.enabled ? 'on' : 'off'} updated`, req });
+  return xbState();
+};
+
+A['xb.test'] = async (u, b, req) => {
+  if (!can(u.role, 'settings.manage')) bad('Not allowed', 403);
+  const cfg = await xbConfig();
+  const channels = await xbCall(() => xbChannels(cfg));
+  const list = Array.isArray(channels) ? channels : channels?.channels || [];
+  // use the channel picked, or the only/first active one
+  let ch = list.find((c) => c.id === cfg.channel) || list.find((c) => c.isActive !== false) || list[0];
+  if (ch && ch.id !== cfg.channel) { await setSetting('xb_channel', ch.id); cfg.channel = ch.id; }
+  if (ch) await setSetting('xb_channel_label', `${ch.name || ''}${ch.phoneNumberId ? ` · ${ch.phoneNumberId}` : ''}`);
+  const t = await xbCall(() => xbTemplates(cfg));
+  const tl = (Array.isArray(t) ? t : t?.templates || []).map((x) => ({ name: x.name, language: x.language || x.languageCode || '', status: String(x.status || '').toLowerCase(), category: x.category || '' }));
+  await setSetting('xb_templates', JSON.stringify(tl));
+  await rememberSite(siteUrl(req));
+  return { ...(await xbState()), channels: list.map((c) => ({ id: c.id, name: c.name, phone: c.phoneNumberId, active: c.isActive !== false })) };
+};
+
+A['xb.testSend'] = async (u, b, req) => {
+  if (!can(u.role, 'settings.manage')) bad('Not allowed', 403);
+  const kind = KINDS[b.kind] ? b.kind : 'invite';
+  const to = String(b.to || '').replace(/\D/g, '');
+  if (to.length < 10) bad('Enter the mobile number with country code, e.g. 919812345678.');
+  const sample = {
+    invite: ['Maj Test Guest', 'Your unit', 'Regimental Get-Together', '2000 hrs', '21 Nov 2026', `${siteUrl(req)}/`, '1234', '15 Nov 2026 at 2000 hrs'],
+    reminder: ['Maj Test Guest', 'Regimental Get-Together', '15 Nov 2026 at 2000 hrs', `${siteUrl(req)}/`, '1234'],
+    confirm: ['Maj Test Guest', 'Regimental Get-Together', 'Attending, 3 persons', '15 Nov 2026 at 2000 hrs', `${siteUrl(req)}/`],
+    eventday: ['Maj Test Guest', 'Barakhana', '1230 hrs', "Officers' Mess", 'please ask your liaison officer', `${siteUrl(req)}/`, '1234'],
+  }[kind];
+  let mediaUrl;
+  if (kind === 'invite' && (await getSetting('xb_invite_image')) !== '0') {
+    const k = await db();
+    const any = await k('invitations').orderBy('id').first();
+    mediaUrl = any ? await signedCardUrl(siteUrl(req), any.token, 1) : `${siteUrl(req)}/api/logo/512`;
+  }
+  const template = await templateFor(kind);
+  const r = await xbCall(() => xbSendTemplate({ to, template, vars: sample, mediaUrl }));
+  await audit({ user: u, action: 'xb.testSend', details: `${KINDS[kind].label} test to +${to}`, req });
+  return { ok: true, wamid: r.wamid };
+};
+
+A['wa.send'] = async (u, b, req) => {
+  const ev = await needEvent(b.event_id);
+  if (!can(u.role, 'invites.send')) bad('Not allowed', 403);
+  const kind = b.kind === 'reminder' ? 'reminder' : 'invite';
+  if (!(await xbConfig()).enabled) bad('WhatsApp automation is off. Turn it on in Settings › WhatsApp automation.');
+  await rememberSite(siteUrl(req));
+  const ids = Array.isArray(b.ids) ? b.ids.map(int).filter(Boolean) : null;
+  const r = await queueBulk({ eventId: ev.id, kind, ids, userId: u.id });
+  await audit({ user: u, eventId: ev.id, action: `wa.${kind}`, details: `Queued ${r.added} ${KINDS[kind].label.toLowerCase()} message(s) on WhatsApp`, req });
+  return r;
+};
+
+A['wa.log'] = async (u, b) => {
+  const ev = await needEvent(b.event_id);
+  if (!can(u.role, 'invites.send') && !can(u.role, 'invites.send_own')) bad('Not allowed', 403);
+  const k = await db();
+  const rows = await k('wa_messages as w').leftJoin('invitations as i', 'i.id', 'w.invitation_id').leftJoin('invitees as p', 'p.id', 'i.invitee_id')
+    .where('w.event_id', ev.id).orderBy('w.id', 'desc').limit(Math.min(500, int(b.limit) || 100))
+    .select('w.id', 'w.kind', 'w.status', 'w.delivery', 'w.error', 'w.to', 'w.sent_at', 'w.created_at', 'w.send_after', 'w.invitation_id', 'p.rank', 'p.name');
+  const counts = await k('wa_messages').where({ event_id: ev.id }).select('kind', 'status').count({ n: '*' }).groupBy('kind', 'status');
+  const cfg = await xbConfig();
+  return {
+    enabled: cfg.enabled,
+    rows: rows.map((r) => ({ ...r, name: [r.rank, r.name].filter(Boolean).join(' ') || '—', sent_at: r.sent_at ? fmtShort(r.sent_at) : null, created_at: fmtShort(r.created_at), send_after: fmtShort(r.send_after) })),
+    counts: counts.map((c) => ({ kind: c.kind, status: c.status, n: Number(c.n) })),
+    switches: { wa_reminders: !!ev.wa_reminders, wa_confirm: !!ev.wa_confirm, wa_eventday: !!ev.wa_eventday },
+  };
+};
+
+A['wa.retry'] = async (u, b, req) => {
+  const ev = await needEvent(b.event_id);
+  if (!can(u.role, 'invites.send')) bad('Not allowed', 403);
+  const k = await db();
+  const n = await k('wa_messages').where({ event_id: ev.id, status: 'failed' }).update({ status: 'queued', send_after: new Date(), error: null, attempts: 0 });
+  await audit({ user: u, eventId: ev.id, action: 'wa.retry', details: `${n} failed WhatsApp message(s) queued again`, req });
+  return { n };
+};
+
+A['wa.cancel'] = async (u, b, req) => {
+  const ev = await needEvent(b.event_id);
+  if (!can(u.role, 'invites.send')) bad('Not allowed', 403);
+  const k = await db();
+  const n = await k('wa_messages').where({ event_id: ev.id, status: 'queued' }).update({ status: 'skipped', error: 'Cancelled' });
+  await audit({ user: u, eventId: ev.id, action: 'wa.cancel', details: `${n} queued WhatsApp message(s) cancelled`, req });
+  return { n };
+};
+
+A['wa.schedule'] = async (u, b) => {
+  if (!can(u.role, 'settings.manage')) bad('Not allowed', 403);
+  // a pretend time is only for automated tests
+  return schedule(process.env.KL_TEST === '1' && b.at ? new Date(b.at) : new Date());
 };
 
 export const POST = handler(async (req) => {

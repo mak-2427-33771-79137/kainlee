@@ -353,3 +353,13 @@ select.inp option{background:#06301d;color:#f4f1e8}
 .ins-cols-t .mu{font-size:10.5px}
 .ins-now{margin-left:6px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;background:#ff2828;color:#fff;border-radius:99px;padding:1px 6px}
 .ins-stats6{grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+
+/* Settings › WhatsApp automation */
+.xb-step{display:flex;gap:12px;align-items:flex-start;padding-top:12px;border-top:1px dashed var(--rule)}
+.xb-n{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;background:var(--green-soft);color:var(--accent)}
+.xb-tpl{display:flex;flex-direction:column;gap:6px;background:var(--well);border-radius:10px;padding:10px}
+.xb-wording{display:flex;flex-direction:column;gap:6px}
+.xb-wording pre{white-space:pre-wrap;margin:0;background:rgba(0,0,0,.25);border-radius:8px;padding:10px;font-family:var(--body);font-size:13.5px}
+.xb-wording ol{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:2px}
+.wa-log td,.wa-log th{font-size:13px}
+.ins-t.wa-log th,.ins-t.wa-log td{text-align:left}

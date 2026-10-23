@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { getEvent, loadInvitation, saveRsvp, displayName } from '@/lib/data';
 import { guestAuthed, startGuestSession, endGuestSession, deadlinePassed, guestView } from '@/lib/guest';
 import { notifyGuestChange } from '@/lib/notify';
+import { queueConfirmation } from '@/lib/wa';
 import { roomsNeeded } from '@/lib/stats';
 import { fmtShort } from '@/lib/util';
 
@@ -89,6 +90,8 @@ export const POST = handler(async (req, { params }) => {
         url: `/admin/e/${event.id}/guests/${inv.id}`,
       });
     }
+    // WhatsApp "we have noted your reply" (if switched on for this event)
+    await queueConfirmation(inv.id).catch((e) => console.error('[wa] confirm', e.message));
     return guestView(token);
   }
 

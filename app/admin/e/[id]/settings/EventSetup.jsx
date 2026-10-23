@@ -59,6 +59,18 @@ export default function EventSetup({ ev, functions, series, templates, placehold
             <div><b>Dietary notes</b><div className="mu" style={{ fontSize: 13 }}>{f.diet_notes_enabled ? 'On: each guest can add a dietary note (e.g. Jain, no egg).' : 'Off: the dietary note box is hidden for everyone.'}</div></div>
             <button type="button" className="tog" id="e-diet" aria-pressed={!!f.diet_notes_enabled} aria-label="Dietary notes for this event" onClick={() => setF({ ...f, diet_notes_enabled: !f.diet_notes_enabled })}><i /></button>
           </div>
+          <div className="lbl" style={{ marginTop: 4 }}>Automatic WhatsApp messages (Xpressbot)</div>
+          {[
+            ['wa_reminders', 'Reply reminders', 'To guests who have not replied: 3 days and 1 day before the RSVP deadline (0900–2000 hrs).'],
+            ['wa_confirm', 'Reply confirmation', 'When a guest saves their reply: “We have noted: attending, 3 persons”.'],
+            ['wa_eventday', 'Event-day pass', 'At 0700 hrs on each function day, to families coming: time, venue, directions and entry QR link.'],
+          ].map(([key, title, desc]) => (
+            <div key={key} className="row" style={{ justifyContent: 'space-between', flexWrap: 'nowrap', background: 'var(--well)', borderRadius: 10, padding: '10px 12px' }}>
+              <div><b>{title}</b><div className="mu" style={{ fontSize: 13 }}>{desc}</div></div>
+              <button type="button" className="tog" id={`e-${key}`} aria-pressed={!!f[key]} aria-label={title} onClick={() => setF({ ...f, [key]: !f[key] })}><i /></button>
+            </div>
+          ))}
+          <span className="mu" style={{ fontSize: 12.5 }}>These need WhatsApp automation switched on in Settings. Invitations are sent from Send invites.</span>
           <div className="lbl">Invitation card wording</div>
           <label className="field"><span>Host line</span><input className="inp" id="e-host" value={f.card_host} onChange={set('card_host')} placeholder="The Commanding Officer and all Officers" /></label>
           <label className="field"><span>Unit line</span><input className="inp" id="e-unit" value={f.card_unit} onChange={set('card_unit')} placeholder="Kainlee" /></label>
