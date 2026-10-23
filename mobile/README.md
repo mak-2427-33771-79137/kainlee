@@ -108,4 +108,4 @@ App Store Connect › your app › select the build › **Add for Review** › *
 
 ## Updating the icon or splash
 
-Replace `assets/icon-only.png` (1024×1024, no transparency) and/or `assets/splash.png` (2732×2732), then `npm run icons` and `npx cap sync ios`.
+Replace `assets/icon-only.png` (1024×1024, no transparency) and/or `assets/splash.png` (2732×2732), then `npm run icons` (downloads the icon tool on demand) and `npx cap sync ios`.
