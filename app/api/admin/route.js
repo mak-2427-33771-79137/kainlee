@@ -831,7 +831,7 @@ async function xbState() {
   return {
     hasKey: !!cfg.key, keyEnd: cfg.key ? cfg.key.slice(-4) : '', enabled: cfg.enabled, base: cfg.base, defaultBase: XB_DEFAULT_BASE,
     channel: cfg.channel, channelLabel: (await getSetting('xb_channel_label')) || '', templates, chosen,
-    inviteImage: (await getSetting('xb_invite_image')) !== '0', texts: TEMPLATE_TEXT, kinds: Object.fromEntries(Object.entries(KINDS).map(([k, v]) => [k, v.label])),
+    inviteImage: (await getSetting('xb_invite_image')) !== '0', buttons: (await getSetting('xb_buttons')) !== '0', buttonParam: (await getSetting('xb_button_param')) || 'button', texts: TEMPLATE_TEXT, kinds: Object.fromEntries(Object.entries(KINDS).map(([k, v]) => [k, v.label])),
   };
 }
 
@@ -854,6 +854,8 @@ A['xb.save'] = async (u, b, req) => {
     for (const kind of Object.keys(KINDS)) if (typeof b.templates[kind] === 'string') await setSetting(KINDS[kind].setting, b.templates[kind].trim().slice(0, 120));
   }
   if (b.inviteImage != null) await setSetting('xb_invite_image', b.inviteImage ? '1' : '0');
+  if (b.buttons != null) await setSetting('xb_buttons', b.buttons ? '1' : '0');
+  if (typeof b.buttonParam === 'string' && /^[A-Za-z_][A-Za-z0-9_]{0,30}$/.test(b.buttonParam.trim())) await setSetting('xb_button_param', b.buttonParam.trim());
   if (b.enabled != null) {
     if (b.enabled && !(await getSetting('xb_key'))) bad('Add the API key first.');
     await setSetting('xb_enabled', b.enabled ? '1' : '0');
@@ -884,20 +886,20 @@ A['xb.testSend'] = async (u, b, req) => {
   const kind = KINDS[b.kind] ? b.kind : 'invite';
   const to = String(b.to || '').replace(/\D/g, '');
   if (to.length < 10) bad('Enter the mobile number with country code, e.g. 919812345678.');
-  const sample = {
-    invite: ['Maj Test Guest', 'Your unit', 'Regimental Get-Together', '2000 hrs', '21 Nov 2026', `${siteUrl(req)}/`, '1234', '15 Nov 2026 at 2000 hrs'],
-    reminder: ['Maj Test Guest', 'Regimental Get-Together', '15 Nov 2026 at 2000 hrs', `${siteUrl(req)}/`, '1234'],
-    confirm: ['Maj Test Guest', 'Regimental Get-Together', 'Attending, 3 persons', '15 Nov 2026 at 2000 hrs', `${siteUrl(req)}/`],
-    eventday: ['Maj Test Guest', 'Barakhana', '1230 hrs', "Officers' Mess", 'please ask your liaison officer', `${siteUrl(req)}/`, '1234'],
-  }[kind];
+  const t = TEMPLATE_TEXT[kind];
   let mediaUrl;
   if (kind === 'invite' && (await getSetting('xb_invite_image')) !== '0') {
     const k = await db();
     const any = await k('invitations').orderBy('id').first();
     mediaUrl = any ? await signedCardUrl(siteUrl(req), any.token, 1) : `${siteUrl(req)}/api/logo/512`;
   }
+  const useButtons = (await getSetting('xb_buttons')) !== '0';
   const template = await templateFor(kind);
-  const r = await xbCall(() => xbSendTemplate({ to, template, vars: sample, mediaUrl }));
+  const buttonParam = (await getSetting('xb_button_param')) || 'button';
+  const r = await xbCall(() => xbSendTemplate({
+    to, template, vars: t.vars.map((v) => v[1]), header: t.header.sample, mediaUrl,
+    buttons: useButtons ? t.buttons.map((x) => x.sample) : [], buttonParam,
+  }));
   await audit({ user: u, action: 'xb.testSend', details: `${KINDS[kind].label} test to +${to}`, req });
   return { ok: true, wamid: r.wamid };
 };

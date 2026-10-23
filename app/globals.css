@@ -363,3 +363,7 @@ select.inp option{background:#06301d;color:#f4f1e8}
 .xb-wording ol{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:2px}
 .wa-log td,.wa-log th{font-size:13px}
 .ins-t.wa-log th,.ins-t.wa-log td{text-align:left}
+.xb-part{display:flex;flex-direction:column;gap:5px;align-items:flex-start;padding-top:8px;border-top:1px dashed var(--rule)}
+.xb-part code,.xb-btn code{font-size:13px;background:rgba(0,0,0,.25);border-radius:6px;padding:2px 6px;word-break:break-all}
+.xb-btn{display:flex;flex-direction:column;gap:3px;align-items:flex-start;background:rgba(0,0,0,.18);border-radius:8px;padding:8px;width:100%}
+.ins-t.xb-samples{margin-top:4px}.ins-t.xb-samples th,.ins-t.xb-samples td{text-align:left}

@@ -6,6 +6,14 @@ const CANONICAL = (process.env.CANONICAL_HOST || 'forefirst.org').toLowerCase();
 const FORWARD = new Set(['www.forefirst.org']);
 
 export function proxy(req) {
+  // WhatsApp "Open my invitation" button: /i/...?k=secret → sign in, then the clean link
+  const k = req.nextUrl.searchParams.get('k');
+  if (k && req.nextUrl.pathname.startsWith('/i/') && (req.method === 'GET' || req.method === 'HEAD')) {
+    const u = new URL('/api/g/open', process.env.SITE_URL || req.url);
+    u.searchParams.set('to', req.nextUrl.pathname);
+    u.searchParams.set('k', k);
+    return NextResponse.redirect(u, 303);
+  }
   const host = (req.headers.get('x-forwarded-host') || req.headers.get('host') || '').split(':')[0].toLowerCase();
   if (host === CANONICAL || !FORWARD.has(host)) return NextResponse.next();
   if (req.method !== 'GET' && req.method !== 'HEAD') return NextResponse.next();

@@ -47,6 +47,7 @@ export default function Xpressbot() {
           {adv && (
             <div className="stack" style={{ gap: 8 }}>
               <label className="field"><span>API address (leave blank for {s.defaultBase})</span><input className="inp" id="xb-base" value={base} onChange={(e) => setBase(e.target.value)} placeholder={s.defaultBase} /></label>
+              <label className="field"><span>Button value name in the API (default “button”, sent as button1, button2)</span><input className="inp" id="xb-bp" defaultValue={s.buttonParam} onBlur={async (e) => { if (e.target.value !== s.buttonParam) { const r = await run('bp', () => admin('xb.save', { buttonParam: e.target.value }), 'Saved'); if (r) load(r); } }} /></label>
               <div className="row" style={{ gap: 8 }}>
                 <button type="button" className="btn sm" disabled={!!busy} onClick={async () => { const r = await run('base', () => admin('xb.save', { base }), 'Saved'); if (r) load(r); }}>Save address</button>
                 {s.hasKey && <button type="button" className="btn sm ghost" style={{ color: 'var(--red-text)' }} disabled={!!busy} onClick={async () => { const r = await run('rm', () => admin('xb.save', { removeKey: true }), 'Key removed, automation off'); if (r) load(r); }}>Remove key</button>}
@@ -96,15 +97,37 @@ export default function Xpressbot() {
                 {missing && <span style={{ fontSize: 13, color: 'var(--red-text)' }}>“{tpl[kind]}” is not approved yet. Pick it once Meta approves it.</span>}
                 {open === kind && (
                   <div className="xb-wording">
-                    <div className="mu" style={{ fontSize: 12.5 }}>Name: <b className="num">{s.chosen[kind] || kind}</b> · Header: {t.header}</div>
-                    <pre>{t.body}</pre>
-                    <ol>{t.vars.map((v, i) => <li key={i}><span className="num">{`{{${i + 1}}}`}</span> {v}</li>)}</ol>
-                    <button type="button" className="btn sm" style={{ alignSelf: 'flex-start' }} onClick={() => copy(t.body)}>Copy wording</button>
+                    <div className="xb-part"><span className="lbl">Name</span><code>{s.chosen[kind] || kind}</code></div>
+                    <div className="xb-part">
+                      <span className="lbl">Header · {t.header.type}</span>
+                      {t.header.text ? <><code>{t.header.text}</code>{t.header.sample && <span className="mu">Sample for {'{{1}}'}: <b>{t.header.sample}</b></span>}</> : <span className="mu">{t.header.note}</span>}
+                      {t.header.text && <button type="button" className="btn ghost sm" onClick={() => copy(t.header.text)}>Copy</button>}
+                    </div>
+                    <div className="xb-part">
+                      <span className="lbl">Body</span>
+                      <pre>{t.body}</pre>
+                      <button type="button" className="btn ghost sm" onClick={() => copy(t.body)}>Copy body</button>
+                      <table className="ins-t xb-samples"><thead><tr><th>Variable</th><th>What it is</th><th>Sample</th></tr></thead>
+                        <tbody>{t.vars.map(([label, sample], i) => <tr key={i}><td className="num">{`{{${i + 1}}}`}</td><td>{label}</td><td><b>{sample}</b></td></tr>)}</tbody></table>
+                    </div>
+                    <div className="xb-part"><span className="lbl">Footer</span><code>{t.footer}</code><button type="button" className="btn ghost sm" onClick={() => copy(t.footer)}>Copy</button></div>
+                    <div className="xb-part">
+                      <span className="lbl">Buttons · Visit website, URL type Dynamic</span>
+                      {t.buttons.map((bt, i) => (
+                        <div key={i} className="xb-btn">
+                          <b>{i + 1}. {bt.text}</b>
+                          <span>URL: <code>{bt.url}</code></span>
+                          <span className="mu">Sample: <code>{bt.sample}</code></span>
+                          <button type="button" className="btn ghost sm" onClick={() => copy(bt.url)}>Copy URL</button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
             );
           })}
+          <label className="row" style={{ gap: 8 }}><input type="checkbox" id="xb-btns" checked={s.buttons} onChange={async (e) => { const r = await run('btns', () => admin('xb.save', { buttons: e.target.checked })); if (r) load(r); }} style={{ width: 20, height: 20, accentColor: '#14a35f' }} />The templates have link buttons (Open my invitation, Get directions)</label>
           <label className="row" style={{ gap: 8 }}><input type="checkbox" id="xb-img" checked={s.inviteImage} onChange={async (e) => { const r = await run('img', () => admin('xb.save', { inviteImage: e.target.checked })); if (r) load(r); }} style={{ width: 20, height: 20, accentColor: '#14a35f' }} />The invitation template has an image header (the guest’s card is attached)</label>
           <button type="button" className="btn pri" style={{ alignSelf: 'flex-start' }} disabled={!!busy} onClick={async () => { const r = await run('tpl', () => admin('xb.save', { templates: tpl }), 'Templates saved'); if (r) load(r); }}>Save templates</button>
         </div>
