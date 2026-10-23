@@ -1,4 +1,5 @@
 'use client';
+import ClearData from './ClearData';
 import { useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Icon from '@/components/Icon';
@@ -18,7 +19,7 @@ function toPng(img, size, bg) {
   return c.toDataURL('image/png');
 }
 
-export default function Settings({ s, log, users, events, filters }) {
+export default function Settings({ s, log, users, events, filters, canClear }) {
   const router = useRouter();
   const path = usePathname();
   const [f, setF] = useState(s);
@@ -75,6 +76,7 @@ export default function Settings({ s, log, users, events, filters }) {
           <tbody>{log.map((l) => <tr key={l.id}><td className="num" style={{ whiteSpace: 'nowrap' }}>{l.at}</td><td>{l.actor}</td><td><code>{l.action}</code></td><td style={{ fontSize: 13.5 }}>{l.details}</td><td className="sub">{l.event}</td></tr>)}</tbody>
         </table></div>
       </section>
+      {canClear && <ClearData />}
     </>
   );
 }

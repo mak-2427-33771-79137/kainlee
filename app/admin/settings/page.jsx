@@ -25,7 +25,7 @@ export default async function SettingsPage({ searchParams }) {
     <Settings
       s={{ regiment_name: await regimentName(), credit_text: (await getSetting('credit_text')) ?? 'Crafted with pride by Mak · makjal.com', war_cry: (await getSetting('war_cry')) ?? 'Jai Mahakali, Ayo Gorkhali!' }}
       log={log.map((l) => ({ id: l.id, at: `${fmtShort(l.at)} ${new Date(l.at).getUTCFullYear()}`, actor: l.actor, action: l.action, details: l.details, event: events.find((e) => e.id === l.event_id)?.name || '', ip: l.ip }))}
-      users={users} events={events} filters={sp}
+      users={users} events={events} filters={sp} canClear={allowed(user, 'data.clear')}
     />
   );
 }

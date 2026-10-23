@@ -76,5 +76,10 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>WKAppBoundDomains</key>
+	<array>
+		<string>momopasal.in</string>
+		<string>lali-guras.in</string>
+	</array>
 </dict>
 </plist>

@@ -8,7 +8,7 @@ import { CATEGORIES } from '@/lib/consts';
 
 const blank = { category: 'officer', rank: '', name: '', mobile: '', city: '', lang: 'en', notes: '' };
 
-export default function Directory({ people, events }) {
+export default function Directory({ people, events, canDelete }) {
   const router = useRouter();
   const [q, setQ] = useState('');
   const [cat, setCat] = useState('');
@@ -65,6 +65,7 @@ export default function Directory({ people, events }) {
           <label className="field"><span>Event</span><select className="inp" id="inv-ev" value={ev} onChange={(e) => setEv(e.target.value)}>{events.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>
           <div className="row">
             <button type="button" className="btn grn" disabled={!ev || !sel.size || busy} onClick={() => run(async () => { const r = await admin('invite.add', { event_id: ev, ids: [...sel] }); toast(`${r.added} invited`); setSel(new Set()); })}>Invite {sel.size || ''} selected</button>
+            {canDelete && <button type="button" className="btn sm ghost" style={{ color: 'var(--red-text)' }} disabled={!sel.size || busy} onClick={() => window.confirm(`Delete ${sel.size} invitee(s) from the directory? They are also removed from every event, with their RSVPs and check-ins. This cannot be undone.`) && run(async () => { const r = await admin('invitee.delete', { ids: [...sel] }); toast(`${r.count} deleted`); setSel(new Set()); })}><Icon n="x" size={15} />Delete {sel.size || ''} selected</button>}
             {CATEGORIES.map((c) => <button key={c.id} type="button" className="btn sm" disabled={!ev || busy} onClick={() => window.confirm(`Invite every ${c.label} in the directory to this event?`) && run(async () => { const r = await admin('invite.add', { event_id: ev, category: c.id }); toast(`${r.added} invited`); })}>All {c.short}</button>)}
           </div>
         </section>
@@ -109,7 +110,10 @@ export default function Directory({ people, events }) {
               {!form.id && <label className="field"><span>Invite to</span><select className="inp" id="p-ev" value={form.event_id || ''} onChange={(e) => setForm({ ...form, event_id: e.target.value })}><option value="">Not yet</option>{events.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}</select></label>}
             </div>
             <label className="field"><span>Notes</span><input className="inp" id="p-notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} /></label>
-            <button className="btn pri" disabled={busy}>Save</button>
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <button className="btn pri" disabled={busy}>Save</button>
+              {canDelete && form.id && <button type="button" className="btn ghost" style={{ color: 'var(--red-text)' }} disabled={busy} onClick={() => window.confirm(`Delete ${form.name} from the directory and from every event? This cannot be undone.`) && run(async () => { await admin('invitee.delete', { id: form.id }); setForm(null); }, 'Invitee deleted')}><Icon n="x" size={15} />Delete invitee</button>}
+            </div>
           </form>
         </Modal>
       )}

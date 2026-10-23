@@ -195,6 +195,13 @@ export default function GuestTable({ event, rows, filters, counts, handlers, vac
               </select>
               <button type="button" className="btn grn" id="g-assign-go" disabled={!assignTo || !sel.size} onClick={assign}><Icon n="swap" />{perms.assign ? 'Assign' : 'Transfer'}</button>
             </div>
+            {perms.remove && sel.size > 0 && (
+              <button type="button" className="btn sm ghost" style={{ color: 'var(--red-text)', alignSelf: 'flex-start' }}
+                onClick={async () => {
+                  if (!window.confirm(`Remove ${sel.size} guest(s) from ${event.name}? Their RSVP, family list, room and check-ins for this event are deleted. They stay in the invitee directory.`)) return;
+                  try { const r = await admin('inv.remove', { ids: [...sel] }); toast(`${r.count} removed`); setSel(new Set()); setSelMode(false); router.refresh(); } catch (e) { toast(e.message, true); }
+                }}><Icon n="x" size={15} />Remove {sel.size} from this event</button>
+            )}
           </div>
         </Portal>
       )}

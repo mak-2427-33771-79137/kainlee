@@ -89,6 +89,7 @@ export default async function Guests({ params, searchParams }) {
           exportAll: can(user.role, 'export.all'),
           exportOwn: can(user.role, 'export.own'),
           isHandler: !!ROLES[user.role]?.handler,
+          remove: can(user.role, 'guests.edit') || can(user.role, 'records.delete'),
         }}
       />
     </>

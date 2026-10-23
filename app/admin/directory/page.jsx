@@ -21,6 +21,7 @@ export default async function DirectoryPage() {
     <Directory
       people={people.map((p) => ({ id: p.id, category: p.category, rank: p.rank || '', name: p.name, mobile: p.mobile || '', mobilePretty: prettyMobile(p.mobile), city: p.city || '', lang: p.lang, notes: p.notes || '', events: by.get(p.id) || [] }))}
       events={events}
+      canDelete={allowed(user, 'records.delete')}
     />
   );
 }

@@ -20,13 +20,29 @@ function blobToBase64(blob) {
   });
 }
 
-/** Native camera QR scanner. Returns the text, or null if cancelled. */
+/**
+ * Native camera QR scanner.
+ * Returns { code } on success, { cancelled: true } if the user closed it, or { error } if the
+ * native scanner could not run (the caller then falls back to the web camera).
+ * Every option must be sent: the iOS side rejects the call if any is missing.
+ */
 export async function nativeScan() {
-  const s = await P('CapacitorBarcodeScanner');
   try {
-    const r = await s.scanBarcode({ hint: 0 /* QR code */, scanInstructions: 'Point at the guest’s entry QR', scanButton: false });
-    return r?.ScanResult || null;
-  } catch { return null; }
+    const s = await P('CapacitorBarcodeScanner');
+    const r = await s.scanBarcode({
+      hint: 0, // QR code
+      scanInstructions: 'Point at the guest’s entry QR',
+      scanButton: false,
+      scanText: ' ',
+      cameraDirection: 1, // back camera
+      scanOrientation: 3, // adaptive
+    });
+    return r?.ScanResult ? { code: r.ScanResult } : { cancelled: true };
+  } catch (e) {
+    const msg = String(e?.message || e?.code || e || '');
+    if (/cancel/i.test(msg)) return { cancelled: true };
+    return { error: msg || 'Scanner unavailable' };
+  }
 }
 
 export async function haptic(ok = true) {

@@ -20,6 +20,16 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
   const handlerMe = sp.get('handler') === 'me';
 
   useEffect(() => { setMore(false); }, [path]);
+  // save this event's main pages on the device for offline use (once per session per event)
+  useEffect(() => {
+    if (!base || navigator.onLine === false || !navigator.serviceWorker?.controller) return;
+    const key = `kl-warm-${base}`;
+    try { if (sessionStorage.getItem(key)) return; sessionStorage.setItem(key, '1'); } catch {}
+    const urls = [...items.map((i) => i.href), '/admin/notifications', '/admin/account'];
+    const t = setTimeout(() => navigator.serviceWorker.controller?.postMessage({ type: 'kl-warm', urls }), 4000);
+    return () => clearTimeout(t);
+  }, [base]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // iOS app: register this phone for push notifications (asks permission the first time)
   useEffect(() => {
     if (isNative()) registerNativePush((token) => admin('push.native', { token, device: navigator.userAgent.slice(0, 150) })).catch(() => {});
@@ -54,6 +64,7 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
 
   async function logout() {
     try { await api('/api/auth', { action: 'logout' }); } catch {}
+    try { navigator.serviceWorker?.controller?.postMessage('kl-clear-pages'); } catch {}
     location.href = '/login';
   }
 

@@ -4,6 +4,7 @@ import Icon from '@/components/Icon';
 import March from '@/components/March';
 import { admin, toast } from '@/components/client';
 import { isNative, nativeScan, haptic } from '@/components/native';
+import { checkinCall, refreshSnapshot, syncNow, subscribe } from '@/components/offline';
 import { RELATION_LABEL, AGE_LABEL, RELATIONS, AGE_GROUPS } from '@/lib/consts';
 
 export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
@@ -16,32 +17,44 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
   const [admitted, setAdmitted] = useState(false);
   const [walk, setWalk] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [net, setNet] = useState({ online: true, pending: 0 });
+  const ci = useCallback((action, data) => checkinCall(action, data, event.id), [event.id]);
 
-  const loadStats = useCallback(async () => { if (fn) try { setStats(await admin('checkin.stats', { function_id: fn })); } catch {} }, [fn]);
+  // keep this event's guest list on the device for offline use; refresh every 5 minutes
+  useEffect(() => subscribe(setNet), []);
+  useEffect(() => {
+    const go = async () => { if (navigator.onLine !== false) { await syncNow(); await refreshSnapshot(event.id); } };
+    go();
+    const t = setInterval(() => !document.hidden && go(), 300000);
+    window.addEventListener('online', go);
+    return () => { clearInterval(t); window.removeEventListener('online', go); };
+  }, [event.id]);
+
+  const loadStats = useCallback(async () => { if (fn) try { setStats(await ci('checkin.stats', { function_id: fn })); } catch {} }, [fn, ci]);
   useEffect(() => { loadStats(); const t = setInterval(() => !document.hidden && loadStats(), 15000); return () => clearInterval(t); }, [loadStats]);
 
   useEffect(() => {
     if (!q.trim()) { setResults([]); return; }
-    const t = setTimeout(async () => { try { setResults((await admin('checkin.search', { event_id: event.id, q })).results); } catch (e) { toast(e.message, true); } }, 250);
+    const t = setTimeout(async () => { try { setResults((await ci('checkin.search', { event_id: event.id, q })).results); } catch (e) { toast(e.message, true); } }, 250);
     return () => clearTimeout(t);
-  }, [q, event.id]);
+  }, [q, event.id, ci]);
 
   const open = async (id) => {
-    try { setParty(await admin('checkin.party', { id })); setAdmitted(false); setResults([]); setQ(''); } catch (e) { toast(e.message, true); }
+    try { setParty(await ci('checkin.party', { id })); setAdmitted(false); setResults([]); setQ(''); } catch (e) { toast(e.message, true); }
   };
   const onCode = async (code) => {
     setScan(false);
-    try { const r = await admin('checkin.lookup', { code, event_id: event.id }); await open(r.id); haptic(true); if (navigator.vibrate) navigator.vibrate(60); } catch (e) { haptic(false); toast(e.message, true); }
+    try { const r = await ci('checkin.lookup', { code, event_id: event.id }); await open(r.id); haptic(true); if (navigator.vibrate) navigator.vibrate(60); } catch (e) { haptic(false); toast(e.message, true); }
   };
   const mark = async (m, status) => {
     const cur = m.fn[fn]?.attendance;
     const next = cur === status ? null : status;
     setParty((p) => ({ ...p, members: p.members.map((x) => (x.id === m.id ? { ...x, fn: { ...x.fn, [fn]: { ...(x.fn[fn] || {}), attendance: next } } } : x)) }));
-    try { await admin('checkin.mark', { member_id: m.id, function_id: fn, status: next }); loadStats(); } catch (e) { toast(e.message, true); open(party.id); }
+    try { await ci('checkin.mark', { member_id: m.id, function_id: fn, status: next }); loadStats(); } catch (e) { toast(e.message, true); open(party.id); }
   };
   const allIn = async () => {
     setBusy(true);
-    for (const m of party.members) if (m.fn[fn]?.attendance !== 'present') await admin('checkin.mark', { member_id: m.id, function_id: fn, status: 'present' }).catch(() => {});
+    for (const m of party.members) if (m.fn[fn]?.attendance !== 'present') await ci('checkin.mark', { member_id: m.id, function_id: fn, status: 'present' }).catch(() => {});
     await open(party.id); setBusy(false); loadStats();
   };
   const done = () => {
@@ -60,13 +73,21 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
           <div className="go" style={{ fontSize: 34, color: 'var(--red)' }}><span className="num">{stats.present}</span> <span className="mu" style={{ fontFamily: 'var(--body)', fontSize: 16, fontWeight: 400 }}>/ {stats.expected}</span></div>
         </div>
       </div>
+      {(!net.online || net.pending > 0) && (
+        <div className={net.online ? 'okmsg' : 'err'} role="status" style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+          <span style={{ flex: 1 }}>{net.online
+            ? `${net.pending} mark(s) made offline${net.syncing ? ' are being sent…' : ' are waiting to be sent.'}`
+            : `No connection. Check-in keeps working from the guest list saved on this device${net.pending ? `; ${net.pending} mark(s) will be sent automatically when back online` : ''}.`}</span>
+          {net.online && net.pending > 0 && <button type="button" className="btn sm" onClick={() => syncNow().then(() => { loadStats(); if (party) open(party.id); })}>Send now</button>}
+        </div>
+      )}
       <div className="row">
         {functions.map((f) => <button key={f.id} type="button" className={`fchip${fn === f.id ? ' on' : ''}`} onClick={() => setFn(f.id)}>{f.name} · {f.when}</button>)}
       </div>
 
       <div className="grid2" style={{ alignItems: 'start', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,340px),1fr))' }}>
         <section className="card3 band stack" style={{ padding: '18px 14px 14px' }}>
-          <button type="button" className="btn pri" style={{ minHeight: 64, fontSize: 18 }} onClick={async () => { if (isNative()) { const c = await nativeScan(); if (c) onCode(c); return; } setScan(!scan); }}><Icon n="scan" size={26} />{scan ? 'Close camera' : 'Scan entry QR'}</button>
+          <button type="button" className="btn pri" style={{ minHeight: 64, fontSize: 18 }} onClick={async () => { if (isNative() && !scan) { const r = await nativeScan(); if (r.code) { onCode(r.code); return; } if (r.cancelled) return; if (/denied|permission/i.test(r.error)) { toast('Camera access is off. Allow it in iPhone Settings › Kainlee › Camera.', true); return; } } setScan(!scan); }}><Icon n="scan" size={26} />{scan ? 'Close camera' : 'Scan entry QR'}</button>
           {scan && <Scanner onCode={onCode} />}
           <label className="field"><span>Or search name, rank, city, mobile</span>
             <input className="inp" id="ci-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. Gurung" style={{ fontSize: 17 }} autoComplete="off" />
@@ -109,7 +130,7 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
             {walk && (
               <form className="stack" style={{ background: 'var(--well-red)', borderRadius: 10, padding: 12 }} onSubmit={async (e) => {
                 e.preventDefault();
-                try { await admin('checkin.walkin', { event_id: event.id, function_id: fn, invitation_id: party.id, ...walk }); toast('Walk-in added and marked present'); setWalk(null); open(party.id); loadStats(); } catch (er) { toast(er.message, true); }
+                try { await admin('checkin.walkin', { event_id: event.id, function_id: fn, invitation_id: party.id, ...walk }); toast('Walk-in added and marked present'); setWalk(null); open(party.id); loadStats(); } catch (er) { toast(er.status ? er.message : 'Walk-ins need a connection. Note the name and add them when back online.', true); }
               }}>
                 <b>Add walk-in to this party</b>
                 <label className="field"><span>Name (English letters)</span><input className="inp" id="wk-name" value={walk.name} onChange={(e) => setWalk({ ...walk, name: e.target.value })} required /></label>

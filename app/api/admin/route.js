@@ -2,7 +2,8 @@ import bcrypt from 'bcryptjs';
 import { handler, body, bad, audit } from '@/lib/api';
 import { db } from '@/lib/db';
 import { getAdmin, HttpError } from '@/lib/auth';
-import { can, canOn, ROLES, ROLE_IDS } from '@/lib/rbac';
+import { can, canOn, ROLES, roleIds, MODULE_IDS } from '@/lib/rbac';
+import { rolesChanged, loadRoles } from '@/lib/roles';
 import { getEvent, loadInvitation, saveRsvp, ensureInvitation, displayName, saveGuestroomNote } from '@/lib/data';
 import {
   CATEGORY_IDS, cleanName, isLatinName, normalizeMobile, istInputToDate, newPin, newToken, newCheckinCode,
@@ -264,13 +265,31 @@ A['invite.add'] = async (u, b, req) => {
 };
 
 A['inv.remove'] = async (u, b, req) => {
-  if (!can(u.role, 'guests.edit')) bad('Not allowed', 403);
-  const inv = await needInv(u, b.id);
-  const name = await invName(inv.id);
+  if (!can(u.role, 'guests.edit') && !can(u.role, 'records.delete')) bad('Not allowed', 403);
+  const ids = (Array.isArray(b.ids) ? b.ids : [b.id]).map(int).filter(Boolean).slice(0, 2000);
+  if (!ids.length) bad('Choose guests to remove.');
   const k = await db();
-  await k('invitations').where({ id: inv.id }).del();
-  await audit({ user: u, eventId: inv.event_id, action: 'inv.remove', details: name, req });
-  return { ok: true };
+  let n = 0;
+  for (const id of ids) {
+    const inv = await needInv(u, id);
+    const name = await invName(inv.id);
+    await k('invitations').where({ id: inv.id }).del();
+    await audit({ user: u, eventId: inv.event_id, action: 'inv.remove', details: name, req });
+    n++;
+  }
+  return { ok: true, count: n };
+};
+
+// Delete people from the invitee directory (and from every event they were invited to)
+A['invitee.delete'] = async (u, b, req) => {
+  if (!can(u.role, 'records.delete')) bad('Your role cannot delete records.', 403);
+  const ids = (Array.isArray(b.ids) ? b.ids : [b.id]).map(int).filter(Boolean).slice(0, 5000);
+  if (!ids.length) bad('Choose invitees to delete.');
+  const k = await db();
+  const rows = await k('invitees').whereIn('id', ids).select('id', 'rank', 'name');
+  await k('invitees').whereIn('id', rows.map((r) => r.id)).del();
+  await audit({ user: u, action: 'invitee.delete', details: `${rows.length}: ${rows.slice(0, 20).map(displayName).join(', ')}${rows.length > 20 ? '…' : ''}`, req });
+  return { count: rows.length };
 };
 
 A['inv.rsvp'] = async (u, b, req) => {
@@ -408,7 +427,7 @@ A['room.bulk'] = async (u, b, req) => {
   return { added: rows.length };
 };
 A['room.delete'] = async (u, b, req) => {
-  if (!can(u.role, 'rooms.manage')) bad('Not allowed', 403);
+  if (!can(u.role, 'rooms.manage') && !can(u.role, 'records.delete')) bad('Not allowed', 403);
   const k = await db();
   const r = await k('rooms').where({ id: int(b.id) || 0 }).first();
   if (!r) bad('Not found', 404);
@@ -518,6 +537,63 @@ A['checkin.mark'] = async (u, b, req) => {
   await audit({ user: u, eventId: inv.event_id, invitationId: inv.id, action: 'checkin.mark', details: `${m.name} · ${f.name}: ${status || 'cleared'}`, req });
   return { ok: true };
 };
+// Offline gate: everything the check-in screen needs for one event, to keep on the device
+A['checkin.snapshot'] = async (u, b) => {
+  if (!can(u.role, 'checkin.mark') && !can(u.role, 'checkin.mark_own')) bad('Not allowed', 403);
+  const ev = await needEvent(b.event_id);
+  const k = await db();
+  const q = k('invitations as i').join('invitees as p', 'p.id', 'i.invitee_id').where('i.event_id', ev.id)
+    .select('i.id', 'i.rsvp_status', 'i.checkin_code', 'i.handler_id', 'p.rank', 'p.name', 'p.category', 'p.city', 'p.mobile');
+  if (!can(u.role, 'checkin.mark')) q.where('i.handler_id', u.id);
+  const invs = await q;
+  const ids = invs.map((i) => i.id);
+  const members = ids.length ? await k('members').whereIn('invitation_id', ids).orderBy([{ column: 'sort' }, { column: 'id' }]) : [];
+  const mids = members.map((m) => m.id);
+  const mfs = mids.length ? await k('member_functions').whereIn('member_id', mids) : [];
+  const byM = new Map();
+  for (const f of mfs) { if (!byM.has(f.member_id)) byM.set(f.member_id, {}); byM.get(f.member_id)[f.function_id] = { attending: !!f.attending, attendance: f.attendance, at: f.marked_at ? new Date(f.marked_at).getTime() : 0 }; }
+  const byInv = new Map();
+  for (const m of members) {
+    if (!byInv.has(m.invitation_id)) byInv.set(m.invitation_id, []);
+    byInv.get(m.invitation_id).push({ id: m.id, name: m.name, relation: m.relation, age_group: m.age_group, meal: m.meal, is_walkin: !!m.is_walkin, fn: byM.get(m.id) || {} });
+  }
+  return {
+    at: Date.now(), event_id: ev.id,
+    functions: ev.functions.map((f) => ({ id: f.id, name: f.name })),
+    parties: invs.map((i) => {
+      const ms = byInv.get(i.id) || [];
+      const name = [i.rank, i.name].filter(Boolean).join(' ');
+      return { id: i.id, name, category: i.category, city: i.city, rsvp: i.rsvp_status, code: i.checkin_code,
+        search: [name, i.city, i.mobile, ...ms.map((m) => m.name)].filter(Boolean).join(' ').toLowerCase(), members: ms };
+    }),
+  };
+};
+
+// Offline gate: apply marks made without internet. The newest mark for a person wins.
+A['checkin.sync'] = async (u, b, req) => {
+  const marks = Array.isArray(b.marks) ? b.marks.slice(0, 5000) : [];
+  const k = await db();
+  let applied = 0, skipped = 0;
+  for (const x of marks) {
+    try {
+      const m = await k('members').where({ id: int(x.member_id) || 0 }).first();
+      if (!m) { skipped++; continue; }
+      const inv = await needInv(u, m.invitation_id, 'checkin.mark');
+      const f = await k('functions').where({ id: int(x.function_id) || 0, event_id: inv.event_id }).first();
+      if (!f) { skipped++; continue; }
+      const status = ['present', 'absent'].includes(x.status) ? x.status : null;
+      const at = new Date(Math.min(Number(x.at) || Date.now(), Date.now()));
+      const cur = await k('member_functions').where({ member_id: m.id, function_id: f.id }).first();
+      if (cur?.marked_at && new Date(cur.marked_at) > at) { skipped++; continue; } // someone marked later online
+      await k('member_functions').insert({ member_id: m.id, function_id: f.id, attending: false, attendance: status, marked_at: status ? at : null, marked_by: status ? u.id : null })
+        .onConflict(['member_id', 'function_id']).merge({ attendance: status, marked_at: status ? at : null, marked_by: status ? u.id : null });
+      applied++;
+    } catch { skipped++; }
+  }
+  if (marks.length) await audit({ user: u, action: 'checkin.sync', details: `${applied} offline mark(s) synced${skipped ? `, ${skipped} skipped (newer mark or no access)` : ''}`, req });
+  return { applied, skipped };
+};
+
 A['checkin.walkin'] = async (u, b, req) => {
   if (!can(u.role, 'checkin.mark') && !can(u.role, 'checkin.mark_own')) bad('Not allowed', 403);
   const ev = await needEvent(b.event_id);
@@ -568,11 +644,11 @@ A['user.save'] = async (u, b, req) => {
   const name = cleanName(b.name);
   const username = String(b.username || '').trim().toLowerCase();
   if (!name || !/^[a-z0-9._-]{3,40}$/.test(username)) bad('Enter a name and a username (3–40 letters, numbers, . _ -).');
-  if (!ROLE_IDS.includes(b.role)) bad('Choose a role.');
+  if (!roleIds().includes(b.role)) bad('Choose a role.');
   const row = { name, username, role: b.role, phone: normalizeMobile(b.phone), active: b.active !== false, notify_all: !!b.notify_all };
   let id = int(b.id);
   if (id) {
-    if (id === u.id && (row.role !== 'super_admin' || !row.active)) bad('You cannot remove your own Super Admin access.');
+    if (id === u.id && (!can(row.role, 'users.manage') || !row.active)) bad('You cannot remove your own access to Users & roles.');
     const old = await k('users').where({ id }).first();
     const upd = { ...row };
     if (b.password) {
@@ -589,6 +665,125 @@ A['user.save'] = async (u, b, req) => {
   }
   await audit({ user: u, action: b.id ? 'user.update' : 'user.create', details: `${name} (${username}) · ${ROLES[b.role].label}${b.reset2fa ? ' · 2FA reset' : ''}${b.password ? ' · password set' : ''}`, req });
   return { id };
+};
+
+A['user.delete'] = async (u, b, req) => {
+  if (!can(u.role, 'users.manage')) bad('Not allowed', 403);
+  const id = int(b.id);
+  if (id === u.id) bad('You cannot delete your own account.');
+  const k = await db();
+  const t = await k('users').where({ id }).first();
+  if (!t) bad('User not found.', 404);
+  const guests = Number((await k('invitations').where({ handler_id: id }).count({ n: '*' }).first()).n);
+  await k('users').where({ id }).del(); // their guests become unassigned
+  await audit({ user: u, action: 'user.delete', details: `${t.name} (${t.username})${guests ? ` · ${guests} guests now unassigned` : ''}`, req });
+  return { ok: true, unassigned: guests };
+};
+
+// ---------- clear data (Settings) ----------
+// Groups of tables; clearing one also clears the groups that depend on it.
+const CLEAR_GROUPS = {
+  audit: { tables: ['audit_log'] },
+  notifications: { tables: ['notifications'] },
+  devices: { tables: ['push_subscriptions', 'native_push_tokens'] },
+  attendance: { tables: ['member_functions (attendance only)'] },
+  allotments: { tables: ['room_allotments'] },
+  rooms: { tables: ['rooms'], implies: ['allotments'] },
+  guests: { tables: ['invitations', 'members', 'member_functions'], implies: ['allotments', 'attendance'] },
+  invitees: { tables: ['invitees'], implies: ['guests'] },
+  events: { tables: ['events', 'functions', 'series'], implies: ['guests', 'rooms'] },
+};
+function closeGroups(list) {
+  const out = new Set(list.filter((g) => CLEAR_GROUPS[g]));
+  let grew = true;
+  while (grew) { grew = false; for (const g of [...out]) for (const d of CLEAR_GROUPS[g].implies || []) if (!out.has(d)) { out.add(d); grew = true; } }
+  return [...out];
+}
+async function clearCounts(k) {
+  const c = async (t, w) => Number((await (w ? w(k(t)) : k(t)).count({ n: '*' }).first()).n);
+  return {
+    audit: await c('audit_log'), notifications: await c('notifications'),
+    devices: (await c('push_subscriptions')) + (await c('native_push_tokens')),
+    attendance: await c('member_functions', (q) => q.whereNotNull('attendance')),
+    allotments: await c('room_allotments'), rooms: await c('rooms'),
+    guests: await c('invitations'), invitees: await c('invitees'), events: await c('events'),
+  };
+}
+A['data.counts'] = async (u) => {
+  if (!can(u.role, 'data.clear')) bad('Not allowed', 403);
+  return { counts: await clearCounts(await db()) };
+};
+A['data.clear'] = async (u, b, req) => {
+  if (!can(u.role, 'data.clear')) bad('Your role cannot clear data.', 403);
+  if (String(b.confirm || '').trim() !== 'DELETE') bad('Type DELETE to confirm.');
+  const k = await db();
+  const me = await k('users').where({ id: u.id }).first();
+  if (!(await bcrypt.compare(String(b.password || ''), me.password_hash))) bad('Your password is not correct.', 401);
+  const groups = closeGroups(Array.isArray(b.groups) ? b.groups : []);
+  if (!groups.length) bad('Tick at least one item.');
+  const before = await clearCounts(k);
+  const has = (g) => groups.includes(g);
+  await k.transaction(async (trx) => {
+    if (has('events')) { await trx('events').del(); await trx('series').del(); }
+    if (has('invitees')) await trx('invitees').del();
+    if (has('guests')) await trx('invitations').del();
+    if (has('rooms')) await trx('rooms').del();
+    if (has('allotments')) await trx('room_allotments').del();
+    if (has('attendance')) {
+      await trx('member_functions').update({ attendance: null, marked_at: null, marked_by: null });
+      await trx('members').where({ is_walkin: true }).del();
+      await trx('invitations').where({ is_walkin: true }).del();
+    }
+    if (has('devices')) { await trx('push_subscriptions').del(); await trx('native_push_tokens').del(); }
+    if (has('notifications')) await trx('notifications').del();
+    if (has('audit')) await trx('audit_log').del();
+  });
+  const summary = groups.map((g) => `${g} (${before[g]})`).join(', ');
+  await audit({ user: u, action: 'data.clear', details: summary, req }); // written after the clear, so it survives
+  return { cleared: groups, counts: await clearCounts(k) };
+};
+
+// ---------- roles (made of modules) ----------
+A['role.save'] = async (u, b, req) => {
+  if (!can(u.role, 'users.manage')) bad('Not allowed', 403);
+  const k = await db();
+  const label = String(b.label || '').trim().replace(/\s+/g, ' ').slice(0, 80);
+  if (label.length < 2) bad('Give the role a name.');
+  const modules = [...new Set((Array.isArray(b.modules) ? b.modules : []).filter((m) => MODULE_IDS.includes(m)))];
+  if (!modules.length) bad('Tick at least one module.');
+  let key = String(b.key || '');
+  if (key) {
+    const old = await k('roles').where({ key }).first();
+    if (!old) bad('Role not found.', 404);
+    if (key === 'super_admin') bad('The Super Admin role always has every module and cannot be changed.');
+    // do not let the person editing remove their own access to Users & roles
+    if (u.role === key && !modules.includes('users')) bad('You cannot remove Users & roles from your own role.');
+    await k('roles').where({ key }).update({ label, twofa: !!b.twofa, modules: JSON.stringify(modules) });
+    // everyone with this role signs in again so the new access applies cleanly
+    await k('users').where({ role: key }).increment('session_version', 1);
+  } else {
+    const base = 'r_' + label.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 30);
+    key = base; let n = 2;
+    while (await k('roles').where({ key }).first()) key = `${base}_${n++}`;
+    await k('roles').insert({ key, label, twofa: !!b.twofa, builtin: false, modules: JSON.stringify(modules), created_at: new Date() });
+  }
+  rolesChanged(); await loadRoles(true);
+  await audit({ user: u, action: b.key ? 'role.update' : 'role.create', details: `${label}: ${modules.join(', ')}${b.twofa ? ' · 2-step login' : ''}`, req });
+  return { key };
+};
+
+A['role.delete'] = async (u, b, req) => {
+  if (!can(u.role, 'users.manage')) bad('Not allowed', 403);
+  const k = await db();
+  const r = await k('roles').where({ key: String(b.key || '') }).first();
+  if (!r) bad('Role not found.', 404);
+  if (r.key === 'super_admin') bad('The Super Admin role cannot be deleted.');
+  const n = Number((await k('users').where({ role: r.key }).count({ n: '*' }).first()).n);
+  if (n) bad(`${n} user(s) still have this role. Give them another role first.`);
+  await k('roles').where({ key: r.key }).del();
+  rolesChanged(); await loadRoles(true);
+  await audit({ user: u, action: 'role.delete', details: r.label, req });
+  return { ok: true };
 };
 
 // ---------- settings ----------

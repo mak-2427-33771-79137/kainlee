@@ -5,6 +5,7 @@ import March from '@/components/March';
 import CardView from '@/components/CardView';
 import DateTimeField from '@/components/DateTimeField';
 import { api, toast, confetti } from '@/components/client';
+import { queueRsvp, flushRsvp, hasQueuedRsvp } from '@/components/offline';
 import { dict, LANGS } from '@/lib/i18n';
 import { RELATIONS, AGE_GROUPS, FAMILY_RELATIONS } from '@/lib/consts';
 
@@ -81,6 +82,19 @@ function Invitation({ token, path, data, setData, t, lang, setLang }) {
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [installEvt, setInstallEvt] = useState(null);
+  const [queued, setQueued] = useState(false);
+  // send a reply that was saved without a connection
+  useEffect(() => {
+    const flush = async () => {
+      if (!(await hasQueuedRsvp(token))) return;
+      setQueued(true);
+      try { const next = await flushRsvp(token); if (next) { setData(next); setQueued(false); toast(t.sentNow); } }
+      catch (e) { if (e.status) { setQueued(false); toast(e.message, true); } }
+    };
+    flush();
+    window.addEventListener('online', flush);
+    return () => window.removeEventListener('online', flush);
+  }, [token]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => { setMembers(withDefaults(data)); setReply(data.invitation.rsvp_status); }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
@@ -104,15 +118,23 @@ function Invitation({ token, path, data, setData, t, lang, setLang }) {
 
   async function save(decline) {
     setBusy(true);
+    const payload = {
+      action: 'save', decline,
+      members: members.map(({ id, name, relation, age_group, meal, meal_note, attending }) => ({ id, name, relation, age_group, meal, meal_note, attending: decline ? [] : attending })),
+      guestroom: inv.guestroom_eligible && event.guestroom ? gr : undefined,
+    };
     try {
-      const next = await api(`/api/g/${token}`, {
-        action: 'save', decline,
-        members: members.map(({ id, name, relation, age_group, meal, meal_note, attending }) => ({ id, name, relation, age_group, meal, meal_note, attending: decline ? [] : attending })),
-        guestroom: inv.guestroom_eligible && event.guestroom ? gr : undefined,
-      });
+      const next = await api(`/api/g/${token}`, payload);
       setData(next); setDirty(false);
       if (!decline) { confetti(); toast(`${t.saved} ${data.warCry || ''}`); } else toast(t.saved);
-    } catch (e) { toast(e.message, true); } finally { setBusy(false); }
+    } catch (e) {
+      if (e.status) toast(e.message, true);
+      else { // no connection: keep it on this phone and send it when back online
+        await queueRsvp(token, payload);
+        setQueued(true); setDirty(false);
+        toast(t.savedOffline);
+      }
+    } finally { setBusy(false); }
   }
 
   const relLabel = (r) => t[`rel_${r}`];
@@ -145,6 +167,7 @@ function Invitation({ token, path, data, setData, t, lang, setLang }) {
       <March squads={2} men={3} height={34} duration={13} width="640px" />
 
       {closed && <div className="err">{t.closed}</div>}
+      {queued && <div className="okmsg" role="status">{t.savedOffline}</div>}
 
       <section className="card3 band stack" style={{ padding: '20px 14px 14px' }}>
         <h2 className="go" style={{ fontSize: 24 }}>{t.rsvp}</h2>

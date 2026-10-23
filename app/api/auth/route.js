@@ -5,6 +5,7 @@ import { handler, body, bad, audit } from '@/lib/api';
 import { db } from '@/lib/db';
 import { sign, verify, startSession, endSession, cookieOpts, PRE_COOKIE, getAdmin } from '@/lib/auth';
 import { ROLES } from '@/lib/rbac';
+import { loadRoles } from '@/lib/roles';
 import { newTotpSecret, verifyTotp, totpUri } from '@/lib/totp';
 import { regimentName } from '@/lib/settings';
 import { cleanName } from '@/lib/util';
@@ -65,6 +66,7 @@ export const POST = handler(async (req) => {
       bad('Wrong username or password.', 401);
     }
     await k('users').where({ id: user.id }).update({ failed_logins: 0, locked_until: null });
+    await loadRoles();
     if (ROLES[user.role]?.twofa) {
       if (!user.totp_enabled) { await preToken(user, 'enrol'); return enrolPayload(user); }
       await preToken(user, 'totp');
