@@ -87,7 +87,17 @@ export default function Checkin({ event, functions, defaultFn, ownOnly, me }) {
 
       <div className="grid2" style={{ alignItems: 'start', gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,340px),1fr))' }}>
         <section className="card3 band stack" style={{ padding: '18px 14px 14px' }}>
-          <button type="button" className="btn pri" style={{ minHeight: 64, fontSize: 18 }} onClick={async () => { if (isNative() && !scan) { const r = await nativeScan(); if (r.code) { onCode(r.code); return; } if (r.cancelled) return; if (/denied|permission/i.test(r.error)) { toast('Camera access is off. Allow it in iPhone Settings › Kainlee › Camera.', true); return; } } setScan(!scan); }}><Icon n="scan" size={26} />{scan ? 'Close camera' : 'Scan entry QR'}</button>
+          <button type="button" className="btn pri" style={{ minHeight: 64, fontSize: 18 }} onClick={async () => {
+            if (isNative() && !scan) {
+              const r = await nativeScan();
+              if (r.code) { onCode(r.code); return; }
+              if (r.cancelled) return;
+              if (r.denied) { toast(r.error, true); return; }
+              // native scanner missing (older app) or failed: say why, then use the in-page camera
+              if (!r.missing) toast(`App scanner: ${r.error}. Using the page camera instead.`, true);
+            }
+            setScan(!scan);
+          }}><Icon n="scan" size={26} />{scan ? 'Close camera' : 'Scan entry QR'}</button>
           {scan && <Scanner onCode={onCode} />}
           <label className="field"><span>Or search name, rank, city, mobile</span>
             <input className="inp" id="ci-search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="e.g. Gurung" style={{ fontSize: 17 }} autoComplete="off" />
@@ -165,7 +175,10 @@ function Scanner({ onCode }) {
     (async () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false });
-        const v = video.current; v.srcObject = stream; await v.play();
+        const v = video.current;
+        v.muted = true; v.setAttribute('muted', ''); v.setAttribute('playsinline', ''); v.setAttribute('autoplay', '');
+        v.srcObject = stream;
+        try { await v.play(); } catch { /* iOS can refuse play() before the first frame; the loop waits for frames */ }
         if ('BarcodeDetector' in window) {
           try { detector = new window.BarcodeDetector({ formats: ['qr_code'] }); } catch { detector = null; }
         }
@@ -191,14 +204,14 @@ function Scanner({ onCode }) {
         };
         loop();
       } catch (e) {
-        setErr(e.name === 'NotAllowedError' ? 'Camera permission was refused. Allow camera access for this site in your browser settings.' : 'Camera is not available on this device. Use search instead.');
+        setErr(e?.name === 'NotAllowedError' ? 'Camera permission was refused. Allow camera access for this site (in the app: iPhone Settings › Kainlee › Camera).' : !navigator.mediaDevices?.getUserMedia ? 'This browser cannot open the camera. Use search instead.' : `Camera could not start (${e?.name || e}). Use search instead.`);
       }
     })();
     return () => { stop = true; cancelAnimationFrame(raf); stream?.getTracks().forEach((t) => t.stop()); };
   }, []);
   return (
     <div style={{ position: 'relative', borderRadius: 14, overflow: 'hidden', background: '#050b08', aspectRatio: '4/3' }}>
-      <video ref={video} playsInline muted style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      <video ref={video} playsInline muted autoPlay style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       <div style={{ position: 'absolute', left: '50%', top: '50%', width: '58%', aspectRatio: '1', transform: 'translate(-50%,-50%)', border: '4px solid var(--red)', borderRadius: 16, boxShadow: '0 0 0 2000px rgba(0,0,0,.35)' }} />
       {err && <div className="err" style={{ position: 'absolute', left: 10, right: 10, bottom: 10 }}>{err}</div>}
     </div>

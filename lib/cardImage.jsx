@@ -76,7 +76,6 @@ export async function cardImage(opts) {
   while (size > 12 && !fits(size)) size -= 0.5;
 
   const dresses = [...new Set(functions.map((f) => f.dress).filter(Boolean))];
-  const mapUrl = (functions.length === 1 && functions[0].map_url) || event.map_url;
   let noteSize = 17;
   const note = event.card_note ? safe(event.card_note) : '';
   while (note && noteSize > 9 && textWidth(F.gothFk, note, noteSize) > W - 140) noteSize -= 0.5;
@@ -96,12 +95,6 @@ export async function cardImage(opts) {
           <div key={i} style={{ display: 'flex', fontFamily: 'Grenze', fontWeight: 700, fontSize: px(size * (l.scale || 1)), lineHeight: lh, color: l.color || '#141414', whiteSpace: 'nowrap' }}>{l.t}</div>
         ))}
       </div>
-      {mapUrl && (
-        <div style={abs(62, H - 64 - 22, 400, 28, { alignItems: 'center', gap: px(10), fontFamily: 'Mukta', fontWeight: 700, fontSize: px(17), color: '#141414' })}>
-          <svg width={px(26)} height={px(30)} viewBox="0 0 26 30"><path d="M13 1C7.5 1 3.5 5 3.5 10.3c0 6.4 9.5 15.2 9.5 15.2s9.5-8.8 9.5-15.2C22.5 5 18.5 1 13 1z" fill={RED} /><circle cx="13" cy="10.3" r="3.6" fill="#fff" /><ellipse cx="13" cy="27.3" rx="8" ry="2" fill="none" stroke={RED} strokeWidth="1.3" /></svg>
-          <span style={{ textDecoration: 'underline' }}>Please Click Here for Directions</span>
-        </div>
-      )}
       {dresses.length === 1 && (
         <div style={abs(W - 470, H - 64 - 22, 400, 28, { justifyContent: 'flex-end', alignItems: 'center', fontFamily: 'Mukta', fontWeight: 700, fontSize: px(18), color: '#141414' })}>{`Dress : ${safe(dresses[0])}`}</div>
       )}

@@ -28,20 +28,16 @@ function blobToBase64(blob) {
  */
 export async function nativeScan() {
   try {
-    const s = await P('CapacitorBarcodeScanner');
-    const r = await s.scanBarcode({
-      hint: 0, // QR code
-      scanInstructions: 'Point at the guest’s entry QR',
-      scanButton: false,
-      scanText: ' ',
-      cameraDirection: 1, // back camera
-      scanOrientation: 3, // adaptive
-    });
-    return r?.ScanResult ? { code: r.ScanResult } : { cancelled: true };
+    // App builds from 23 Oct 2026 have their own scanner (KainleeScanner). Older builds don't,
+    // so this rejects with "not implemented" and the caller falls back to the web camera.
+    const s = await P('KainleeScanner');
+    const r = await s.scan({ title: 'Point at the guest’s entry QR' });
+    if (r?.code) return { code: r.code };
+    return { cancelled: true };
   } catch (e) {
     const msg = String(e?.message || e?.code || e || '');
-    if (/cancel/i.test(msg)) return { cancelled: true };
-    return { error: msg || 'Scanner unavailable' };
+    const denied = e?.code === 'DENIED' || /denied|not allowed|access is off/i.test(msg);
+    return { error: msg || 'Scanner unavailable', denied, missing: /not implemented|unimplemented/i.test(msg) };
   }
 }
 

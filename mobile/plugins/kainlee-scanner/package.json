@@ -1,0 +1,7 @@
+{
+  "name": "kainlee-scanner",
+  "version": "1.0.0",
+  "description": "Entry-QR scanner for the Kainlee iOS app (AVFoundation, no third-party code)",
+  "private": true,
+  "capacitor": { "ios": { "src": "ios" } }
+}

@@ -154,10 +154,12 @@ function Invitation({ token, path, data, setData, t, lang, setLang }) {
           <button type="button" className={`flip${flip ? ' on' : ''}`} onClick={() => { setFlip(!flip); if (!flip) api(`/api/g/${token}`, { action: 'qr' }).catch(() => {}); }} aria-label={flip ? t.tapBack : t.tapFront}>
             <div className="face" style={{ position: 'relative' }}><CardView html={data.cardHtml} /><div className="gloss" /></div>
             <div className="face back">
-              <div className="go" style={{ fontSize: 22, color: 'var(--accent)' }}>{t.yourQr}</div>
-              <div dangerouslySetInnerHTML={{ __html: data.qrSvg }} style={{ width: 'min(46%,190px)' }} />
-              <div className="go" style={{ fontSize: 18 }}>{invitee.name}</div>
-              <div className="mu" style={{ fontSize: 13 }}>{t.showQr}</div>
+              <div className="qrbig" dangerouslySetInnerHTML={{ __html: data.qrSvg }} />
+              <div className="qrtxt">
+                <div className="go">{t.yourQr}</div>
+                <div className="go nm">{invitee.name}</div>
+                <div className="mu">{t.showQr}</div>
+              </div>
             </div>
           </button>
         </div>

@@ -1,5 +1,5 @@
 /* Kainlee service worker: fast repeat visits, offline entry pass, push notifications. */
-const VERSION = 'kl-v3';
+const VERSION = 'kl-v4';
 const STATIC = `${VERSION}-static`;
 const PAGES = `${VERSION}-pages`;
 
@@ -63,8 +63,18 @@ self.addEventListener('fetch', (e) => {
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
 
-  // immutable build assets, fonts, crest: cache first
-  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/fonts/') || url.pathname.startsWith('/api/logo/')) {
+  // crest: show the saved copy at once, refresh it in the background (it can be changed in Settings)
+  if (url.pathname.startsWith('/api/logo/')) {
+    e.respondWith(caches.open(STATIC).then(async (c) => {
+      const hit = await c.match(req);
+      const fresh = fetch(req).then((res) => { if (res.ok) c.put(req, res.clone()); return res; }).catch(() => hit);
+      if (hit) return hit;
+      return fresh;
+    }));
+    return;
+  }
+  // immutable build assets and fonts: cache first
+  if (url.pathname.startsWith('/_next/static/') || url.pathname.startsWith('/fonts/')) {
     e.respondWith(caches.open(STATIC).then(async (c) => {
       const hit = await c.match(req);
       if (hit) return hit;
