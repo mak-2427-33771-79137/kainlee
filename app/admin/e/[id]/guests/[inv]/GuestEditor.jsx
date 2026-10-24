@@ -10,7 +10,10 @@ import { RELATION_LABEL, AGE_LABEL, RELATIONS, AGE_GROUPS } from '@/lib/consts';
 
 export default function GuestEditor({ event, r, handlers, vacant, canAllot, canReview, assignAll, me, history }) {
   const router = useRouter();
-  const [members, setMembers] = useState(r.members);
+  const fnIds0 = event.functions.map((f) => f.id);
+  // Not replied yet: everything starts ticked (as on the guest's own page), so Save = attending
+  const [members, setMembers] = useState(r.rsvp === 'pending' ? r.members.map((m) => (m.attending.length ? m : { ...m, attending: [...fnIds0] })) : r.members);
+  const [reply, setReply] = useState(r.rsvp);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState(false);
@@ -20,15 +23,22 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
   const fnIds = event.functions.map((f) => f.id);
 
   const upd = (i, patch) => { setMembers(members.map((m, j) => (j === i ? { ...m, ...patch } : m))); setDirty(true); };
+  const chooseAttending = () => { setReply('attending'); setDirty(true); if (members.every((m) => !m.attending.length)) setMembers(members.map((m) => ({ ...m, attending: [...fnIds] }))); };
+  const anyTicked = members.some((m) => m.attending.length > 0);
   const toggleFn = (i, fid) => { const m = members[i]; upd(i, { attending: m.attending.includes(fid) ? m.attending.filter((x) => x !== fid) : [...m.attending, fid] }); };
-  const add = () => { setMembers([...members, { name: '', relation: 'spouse', age_group: 'adult', meal: 'veg', meal_note: '', attending: [...fnIds], attendance: {} }]); setDirty(true); };
+  const add = () => { setMembers([...members, { name: '', relation: 'spouse', age_group: 'adult', meal: 'veg', meal_note: '', attending: [...fnIds], attendance: {} }]); setDirty(true); setReply('attending'); };
   const run = async (fn, ok) => { setBusy(true); try { await fn(); if (ok) toast(ok); router.refresh(); } catch (e) { toast(e.message, true); } finally { setBusy(false); } };
 
-  const saveRsvp = (decline) => run(async () => {
-    const res = await admin('inv.rsvp', { id: r.id, decline, members: members.map(({ id, name, relation, age_group, meal, meal_note, attending }) => ({ id, name, relation, age_group, meal, meal_note, attending })), guestroom: gr });
-    setDirty(false);
-    toast(res?.waQueued ? 'RSVP saved. The guest will get a WhatsApp confirmation in about 2 minutes.' : 'RSVP saved');
-  });
+  const saveRsvp = (decline) => {
+    if (!decline && !anyTicked) { toast('Tick at least one function for someone, or choose Regret.', true); return; }
+    if (decline && !window.confirm(`Mark ${r.name} as Regret (not attending any function)?`)) return;
+    return run(async () => {
+      const res = await admin('inv.rsvp', { id: r.id, decline, members: members.map(({ id, name, relation, age_group, meal, meal_note, attending }) => ({ id, name, relation, age_group, meal, meal_note, attending: decline ? [] : attending })), guestroom: decline ? { required: false } : gr });
+      setDirty(false); setReply(res.status);
+      const what = res.status === 'attending' ? `Saved: attending, ${members.reduce((a, m) => a + (m.attending.length ? 1 : 0), 0)} person(s)` : 'Saved: Regret';
+      toast(res?.waQueued ? `${what}. The guest will get a WhatsApp confirmation in about 2 minutes.` : what);
+    });
+  };
 
   const mark = (mid, fid, status) => run(() => admin('checkin.mark', { member_id: mid, function_id: fid, status }));
 
@@ -107,7 +117,19 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
             <h2 className="go" style={{ fontSize: 24 }}>Family &amp; RSVP</h2>
             <span className="mu" style={{ fontSize: 13 }}>Ticks = attending · P/A = attendance on the day</span>
           </div>
-          {members.map((m, i) => (
+          {r.canEdit && (
+            <div className="stack" style={{ gap: 8 }}>
+              <div className="lbl">Reply on the guest’s behalf</div>
+              <div className="row" style={{ gap: 8 }}>
+                <button type="button" className={`btn${reply === 'attending' ? ' grn' : ''}`} disabled={busy} aria-pressed={reply === 'attending'} onClick={chooseAttending}>✓ Attending</button>
+                <button type="button" className={`btn${reply === 'declined' ? ' pri' : ''}`} style={reply === 'declined' ? {} : { borderColor: 'rgba(255,110,90,.55)', color: 'var(--red-text)', boxShadow: 'none' }} disabled={busy} aria-pressed={reply === 'declined'} onClick={() => saveRsvp(true)}>✕ Regret</button>
+              </div>
+              {reply === 'pending' && <span className="mu" style={{ fontSize: 13 }}>No reply yet. Everyone below is ticked for every function: untick what they will miss, add family, then <b>Save RSVP</b>.</span>}
+            </div>
+          )}
+          {reply === 'declined' && !dirty ? (
+            <div className="err" style={{ fontWeight: 400 }}>Marked as <b>Regret</b>: not attending any function. Tap <b>✓ Attending</b> to change it.</div>
+          ) : members.map((m, i) => (
             <div key={m.id || `n${i}`} style={{ borderBottom: '1px dashed var(--rule2)', paddingBottom: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div className="grid2" style={{ gridTemplateColumns: 'repeat(auto-fit,minmax(min(100%,140px),1fr))' }}>
                 <label className="field" style={{ gridColumn: 'span 2' }}><span>Name{m.is_walkin ? ' · walk-in' : ''}</span>
@@ -146,11 +168,11 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
               </div>
             </div>
           ))}
-          {r.canEdit && (
+          {r.canEdit && !(reply === 'declined' && !dirty) && (
             <div className="row">
               <button type="button" className="btn" onClick={add}><Icon n="plus" />Add person</button>
-              <button type="button" className="btn pri" disabled={busy} onClick={() => saveRsvp(false)}>{dirty ? 'Save RSVP' : 'Save'}</button>
-              <button type="button" className="btn ghost" style={{ color: 'var(--red-text)' }} disabled={busy} onClick={() => saveRsvp(true)}>Mark as Regret</button>
+              <button type="button" className="btn pri" disabled={busy || !anyTicked} onClick={() => saveRsvp(false)}><Icon n="check" />{dirty ? 'Save RSVP (attending)' : 'Save'}</button>
+              {!anyTicked && <span className="mu" style={{ fontSize: 13 }}>Tick at least one function, or choose Regret.</span>}
             </div>
           )}
         </section>
