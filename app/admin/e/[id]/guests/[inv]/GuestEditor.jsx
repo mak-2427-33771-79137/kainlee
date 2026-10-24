@@ -1,5 +1,6 @@
 'use client';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import Portal from '@/components/Portal';
 import { useRouter } from 'next/navigation';
 import Icon from '@/components/Icon';
 import DateTimeField from '@/components/DateTimeField';
@@ -12,13 +13,27 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
   const router = useRouter();
   const fnIds0 = event.functions.map((f) => f.id);
   // Not replied yet: everything starts ticked (as on the guest's own page), so Save = attending
-  const [members, setMembers] = useState(r.rsvp === 'pending' ? r.members.map((m) => (m.attending.length ? m : { ...m, attending: [...fnIds0] })) : r.members);
+  const startMembers = () => (r.rsvp === 'pending' ? r.members.map((m) => (m.attending.length ? m : { ...m, attending: [...fnIds0] })) : r.members);
+  const [members, setMembers] = useState(startMembers);
   const [reply, setReply] = useState(r.rsvp);
   const [dirty, setDirty] = useState(false);
   const [busy, setBusy] = useState(false);
   const [pin, setPin] = useState(false);
   const [showPin, setShowPin] = useState(false);
-  const [gr, setGr] = useState({ required: r.required, rooms: r.rooms_required, eta: r.eta, etd: r.etd });
+  const startGr = () => ({ required: r.required, rooms: r.rooms_required, eta: r.eta, etd: r.etd });
+  const [gr, setGr0] = useState(startGr);
+  const [grDirty, setGrDirty] = useState(false);
+  const setGr = (v) => { setGr0(v); setGrDirty(true); };
+  const unsaved = r.canEdit && (dirty || grDirty);
+  // warn before leaving the page with unsaved changes
+  useEffect(() => {
+    if (!unsaved) return;
+    const h = (e) => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', h);
+    return () => window.removeEventListener('beforeunload', h);
+  }, [unsaved]);
+  const discard = () => { setMembers(startMembers()); setReply(r.rsvp); setDirty(false); setGr0(startGr()); setGrDirty(false); };
+  const saveGuestroom = () => run(async () => { await admin('inv.guestroom', { id: r.id, ...gr }); setGrDirty(false); }, 'Guest room saved');
   const [to, setTo] = useState('');
   const fnIds = event.functions.map((f) => f.id);
 
@@ -34,7 +49,7 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
     if (decline && !window.confirm(`Mark ${r.name} as Regret (not attending any function)?`)) return;
     return run(async () => {
       const res = await admin('inv.rsvp', { id: r.id, decline, members: members.map(({ id, name, relation, age_group, meal, meal_note, attending }) => ({ id, name, relation, age_group, meal, meal_note, attending: decline ? [] : attending })), guestroom: decline ? { required: false } : gr });
-      setDirty(false); setReply(res.status);
+      setDirty(false); setGrDirty(false); setReply(res.status);
       const what = res.status === 'attending' ? `Saved: attending, ${members.reduce((a, m) => a + (m.attending.length ? 1 : 0), 0)} person(s)` : 'Saved: Regret';
       toast(res?.waQueued ? `${what}. The guest will get a WhatsApp confirmation in about 2 minutes.` : what);
     });
@@ -105,7 +120,7 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
               <DateTimeField id="gr-etd" label="Departure (ETD)" value={gr.etd} disabled={!r.canEdit} onChange={(v) => setGr({ ...gr, etd: v })} />
             </div>
           )}
-          {r.canEdit && <button type="button" className="btn grn" disabled={busy} onClick={() => run(() => admin('inv.guestroom', { id: r.id, ...gr }), 'Guest room saved')}>Save guest room</button>}
+          {r.canEdit && <button type="button" className="btn grn" disabled={busy} onClick={saveGuestroom}>Save guest room</button>}
           {(r.need > 0 || r.rooms.length > 0) && <Allot r={r} vacant={vacant} canAllot={canAllot} onDone={() => router.refresh()} />}
         </section>
         </>)}
@@ -195,6 +210,20 @@ export default function GuestEditor({ event, r, handlers, vacant, canAllot, canR
         </section>
       </div>
       {pin && <PinReset r={r} onClose={() => { setPin(false); router.refresh(); }} />}
+      {unsaved && <div style={{ height: 130, gridColumn: '1 / -1' }} aria-hidden="true" />}
+      {unsaved && (
+        <Portal>
+          <div className="actbar card3" role="region" aria-label="Unsaved changes">
+            <div className="row" style={{ justifyContent: 'space-between', gap: 8 }}>
+              <span><b>Unsaved changes</b><br /><span className="mu" style={{ fontSize: 13 }}>{dirty ? (reply === 'declined' ? 'Reply: Regret' : anyTicked ? `Reply: Attending · ${members.filter((m) => m.attending.length).length} person(s)` : 'Tick at least one function, or choose Regret') : 'Guest room'}</span></span>
+              <span className="row" style={{ gap: 8 }}>
+                <button type="button" className="btn" disabled={busy} onClick={discard}>Discard</button>
+                <button type="button" className="btn pri" disabled={busy || (dirty && reply !== 'declined' && !anyTicked)} onClick={() => (dirty ? (reply === 'declined' ? saveRsvp(true) : saveRsvp(false)) : saveGuestroom())}><Icon n="check" />Save changes</button>
+              </span>
+            </div>
+          </div>
+        </Portal>
+      )}
     </div>
   );
 }
