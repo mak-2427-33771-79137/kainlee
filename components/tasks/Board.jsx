@@ -193,7 +193,7 @@ export default function Board({ eventId, evName }) {
         <span className="mu" style={{ fontSize: 13, marginLeft: 'auto' }}>{all ? 'Showing all done tasks' : 'Done tasks older than 7 days are hidden'} · <button type="button" className="btn sm ghost" style={{ minHeight: 0, padding: 0, display: 'inline', textDecoration: 'underline' }} onClick={() => setAll(!all)}>{all ? 'Hide old' : 'Show all'}</button></span>
       </div>
       <div className="tk-tabs" role="tablist">
-        {cols.map((c) => <button type="button" role="tab" aria-selected={tab === c.id} key={c.id} className={`fchip${tab === c.id ? ' on' : ''}`} onClick={() => setTab(c.id)}>{c.name} · {c.cards.length}</button>)}
+        {cols.map((c) => <button type="button" role="tab" aria-selected={tab === c.id} key={c.id} className={`fchip${tab === c.id ? ' on' : ''}`} onClick={() => setTab(c.id)} aria-label={`${c.name}: ${c.cards.length}`}><b>{c.name}</b><small className="num">{c.cards.length}</small></button>)}
       </div>
       {!d ? <div className="tk-board">{[0, 1, 2].map((i) => <div key={i} className="tk-col skel" style={{ height: 220 }} />)}</div> : (
         <div className="tk-board">
