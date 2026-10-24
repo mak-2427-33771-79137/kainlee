@@ -12,9 +12,10 @@ const GROUPS = [
   { id: 'attendance', label: 'Gate check-in marks', tables: 'member_functions (attendance), walk-ins', desc: 'Present / absent marks and walk-ins. Guests and RSVPs stay.' },
   { id: 'allotments', label: 'Room allotments', tables: 'room_allotments', desc: 'Which guest has which room. Rooms and requests stay.' },
   { id: 'rooms', label: 'Guest rooms', tables: 'rooms', desc: 'The room list (and its allotments).', implies: ['allotments'] },
+  { id: 'tasks', label: 'Tasks & attachments', tables: 'tasks, task_labels, task_items, task_comments, task_files, task_history', desc: 'All task boards: tasks, checklists, comments, labels and history. Attached photos and PDFs are erased from the server.' },
   { id: 'guests', label: 'Guests & RSVPs', tables: 'invitations, members, member_functions', desc: 'Everyone invited to every event, their family lists, replies and check-ins. The directory and events stay.', implies: ['allotments', 'attendance'] },
   { id: 'invitees', label: 'Invitee directory', tables: 'invitees', desc: 'All people in the directory (and therefore all guests).', implies: ['guests'] },
-  { id: 'events', label: 'Events', tables: 'events, functions, series', desc: 'All events and their functions, guests and rooms.', implies: ['guests', 'rooms'] },
+  { id: 'events', label: 'Events', tables: 'events, functions, series', desc: 'All events and their functions, guests, rooms and tasks (with their files).', implies: ['guests', 'rooms', 'tasks'] },
 ];
 const close = (set) => {
   const out = new Set(set); let grew = true;
@@ -58,7 +59,7 @@ export default function ClearData() {
               <label key={g.id} className="row" style={{ gap: 10, alignItems: 'flex-start', flexWrap: 'nowrap', background: all.has(g.id) ? 'var(--well-red)' : 'var(--well)', borderRadius: 10, padding: '9px 11px' }}>
                 <input type="checkbox" checked={all.has(g.id)} disabled={auto} onChange={() => toggle(g.id)} style={{ width: 20, height: 20, marginTop: 2, flex: 'none', accentColor: '#FF2828' }} />
                 <span style={{ flex: 1 }}>
-                  <b>{g.label}</b> <span className="mu num">· {counts ? (counts[g.id] ?? 0).toLocaleString('en-IN') : '…'} rows</span>{auto && <span className="chip dec" style={{ marginLeft: 6 }}>included</span>}
+                  <b>{g.label}</b> <span className="mu num">· {counts ? (counts[g.id] ?? 0).toLocaleString('en-IN') : '…'} rows{g.id === 'tasks' && counts?.taskFiles ? ` · ${counts.taskFiles} files (${(counts.taskBytes / 1048576).toFixed(1)} MB)` : ''}</span>{auto && <span className="chip dec" style={{ marginLeft: 6 }}>included</span>}
                   <br /><span className="mu" style={{ fontSize: 13 }}>{g.desc}</span>
                   <br /><code style={{ fontSize: 11.5, opacity: 0.7 }}>{g.tables}</code>
                 </span>

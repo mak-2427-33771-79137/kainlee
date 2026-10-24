@@ -10,6 +10,7 @@ import ExportMenu from '@/components/ExportMenu';
 import { AutoRefresh, Count } from '@/components/Live';
 import { computeInsights } from '@/lib/insights';
 import Insights from './Insights';
+import MyTasks from '@/components/tasks/MyTasks';
 
 export const dynamic = 'force-dynamic';
 export const metadata = { title: 'Dashboard' };
@@ -110,6 +111,8 @@ export default async function Dashboard({ params, searchParams }) {
         )}
 
       </div>
+
+      <div style={{ margin: '18px 0' }}><MyTasks eventId={ev.id} compact /></div>
 
       <Insights x={x} s={s} ev={ev} phase={phase} sp={sp} canExport={canExport} canSend={can(user.role, 'invites.send')} />
     </>

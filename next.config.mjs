@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   poweredByHeader: false,
+  // task attachments are up to 10 MB; requests pass through proxy.js, which buffers the body
+  experimental: { proxyClientMaxBodySize: '12mb' },
   compress: true,
   // Server-only libraries: keep them out of the bundle (faster builds, no optional-driver warnings)
   serverExternalPackages: ['knex', 'mysql2', 'exceljs', 'pdf-lib', '@pdf-lib/fontkit', 'web-push', 'sanitize-html', 'qrcode', 'bcryptjs'],

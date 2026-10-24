@@ -18,6 +18,7 @@ import { assignSlug, guestPath, EVENT_CODE_RE } from '@/lib/links';
 import { sanitizeCard } from '@/lib/cards';
 import { saveSubscription, vapidPublicKey, notifyUsers, notifyGuestChange, saveNativeToken } from '@/lib/notify';
 import { regimentName } from '@/lib/settings';
+import { eraseFilesOfTasks, eraseAllFiles } from '@/lib/taskFiles';
 
 export const dynamic = 'force-dynamic';
 
@@ -137,6 +138,7 @@ A['event.delete'] = async (u, b, req) => {
   const ev = await needEvent(b.id);
   if (String(b.confirm || '').trim() !== ev.name) bad('Type the event name exactly to confirm.');
   const k = await db();
+  await eraseFilesOfTasks(k, k('tasks').where({ event_id: ev.id }).select('id')); // attached files leave the disk too
   await k('events').where({ id: ev.id }).del();
   await audit({ user: u, action: 'event.delete', details: ev.name, req });
   return { ok: true };
@@ -698,7 +700,8 @@ const CLEAR_GROUPS = {
   rooms: { tables: ['rooms'], implies: ['allotments'] },
   guests: { tables: ['invitations', 'members', 'member_functions'], implies: ['allotments', 'attendance'] },
   invitees: { tables: ['invitees'], implies: ['guests'] },
-  events: { tables: ['events', 'functions', 'series'], implies: ['guests', 'rooms'] },
+  tasks: { tables: ['tasks', 'task_labels', 'task_items', 'task_comments', 'task_files (and the files on disk)', 'task_history'] },
+  events: { tables: ['events', 'functions', 'series'], implies: ['guests', 'rooms', 'tasks'] },
 };
 function closeGroups(list) {
   const out = new Set(list.filter((g) => CLEAR_GROUPS[g]));
@@ -714,6 +717,8 @@ async function clearCounts(k) {
     attendance: await c('member_functions', (q) => q.whereNotNull('attendance')),
     allotments: await c('room_allotments'), rooms: await c('rooms'),
     guests: await c('invitations'), invitees: await c('invitees'), events: await c('events'),
+    tasks: await c('tasks'), taskFiles: await c('task_files'),
+    taskBytes: Number((await k('task_files').sum({ n: 'size' }).first())?.n || 0),
   };
 }
 A['data.counts'] = async (u) => {
@@ -730,7 +735,9 @@ A['data.clear'] = async (u, b, req) => {
   if (!groups.length) bad('Tick at least one item.');
   const before = await clearCounts(k);
   const has = (g) => groups.includes(g);
+  if (has('tasks')) await eraseAllFiles(); // attached photos and PDFs are erased from the server
   await k.transaction(async (trx) => {
+    if (has('tasks')) { await trx('tasks').del(); await trx('task_labels').del(); await trx('task_reminders').del(); }
     if (has('events')) { await trx('events').del(); await trx('series').del(); }
     if (has('invitees')) await trx('invitees').del();
     if (has('guests')) await trx('invitations').del();

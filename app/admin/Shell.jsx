@@ -52,6 +52,7 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
     if (perms.rooms && grOn) items.push({ href: `${base}/rooms`, label: 'Guest rooms', icon: 'bed', on: is(`${base}/rooms`) });
     if (perms.checkin) items.push({ href: `${base}/checkin`, label: 'Check-in', icon: 'scan', on: is(`${base}/checkin`) });
     if (perms.send) items.push({ href: `${base}/send`, label: 'Send invites', icon: 'send', on: is(`${base}/send`) });
+    if (base) items.push({ href: `${base}/tasks`, label: 'Tasks', icon: 'tasks', on: is(`${base}/tasks`) });
     if (perms.catering) items.push({ href: `${base}/catering`, label: 'Catering', icon: 'food', on: is(`${base}/catering`) });
     if (perms.eventSetup) items.push({ href: `${base}/settings`, label: 'Event setup & card', icon: 'cal', on: is(`${base}/settings`) });
   }
@@ -60,6 +61,7 @@ export default function Shell({ user, events, unread: unread0, perms, regiment, 
   if (perms.directory) general.push({ href: '/admin/directory', label: 'Invitee directory', icon: 'book', on: is('/admin/directory') });
   if (perms.users) general.push({ href: '/admin/users', label: 'Users & roles', icon: 'shield', on: is('/admin/users') });
   if (perms.settings) general.push({ href: '/admin/settings', label: 'Settings & activity', icon: 'gear', on: is('/admin/settings') });
+  general.push({ href: '/admin/tasks', label: 'My tasks', icon: 'check', on: is('/admin/tasks') });
   general.push({ href: '/admin/notifications', label: 'Notifications', icon: 'bell', on: is('/admin/notifications'), badge: unread });
   general.push({ href: '/admin/account', label: 'My account', icon: 'me', on: is('/admin/account') });
 

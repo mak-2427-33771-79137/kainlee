@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { storeStatus } from '@/lib/taskFiles';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,6 +26,7 @@ export async function GET() {
     out.database = 'ok';
     out.server = r[0][0].v;
     out.migrations = Number(tables.n);
+    out.taskFiles = await storeStatus();
   } catch (e) {
     out.database = 'error';
     out.error = e.code || e.name || 'error';
